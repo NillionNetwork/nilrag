@@ -1,6 +1,8 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from secret_sharing import *
+from phe import paillier
+import time
 
 # Load text from file
 def load_file(file_path):
@@ -78,7 +80,8 @@ def rag_with_shares():
     all_differences_shares = []
     for embedding_share in all_embedding_shares:
         all_differences_shares.append(
-            [np.array(query_embedding_shares[party]) - np.array(embedding_share[party]) for party in range(secret_sharing.num_parties)]
+            [np.array(query_embedding_shares[party]) - np.array(embedding_share[party])
+            for party in range(secret_sharing.num_parties)]
         )
 
     # Reveal
@@ -100,13 +103,71 @@ def rag_with_shares():
         print(f"{i}. {chunk} (Distance: {dist:.2f})")
 
 
+def rag_with_paillier():
+    public_key, private_key = paillier.generate_paillier_keypair()
+
+    file_path = "data.txt"
+    paragraphs = load_file(file_path)
+    chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)  # Reduced chunk size for clarity
+    embeddings = generate_embeddings_huggingface(chunks)
+    all_embedding_shares = []
+    for i, embedding_share in enumerate(embeddings):
+        t = []
+        for j, e in enumerate(embedding_share):
+            t = public_key.encrypt(float(e))
+            print(f'finished {j} out of {len(embedding_share)}')
+        all_embedding_shares.append(t)
+        print(f'finished {i} out of {len(embeddings)}')
+    print('finished encryption of documents')
+
+    # User Query
+    query = "Tell me about places in Asia."
+    query_embedding = generate_embeddings_huggingface([query])[0]
+    query_embedding_shares = [public_key.encrypt(float(q)) for q in query_embedding]
+    print('finished encryption of query')
+
+    # Compute the differences between the query and all embeddings
+    all_differences_shares = []
+    for embedding_share in all_embedding_shares:
+        all_differences_shares.append(
+            np.array(query_embedding_shares) - np.array(embedding_share)
+        )
+    print('Computed difference')
+
+    # Reveal
+    differences = []
+    for differences_share in all_differences_shares:
+        differences.append([private_key.decrypt(d) for d in differences_share])
+
+    # Compute Euclidean distances based on differences
+    distances = [np.linalg.norm(diff) for diff in differences]
+    # Retrieve top results
+    sorted_indices = np.argsort(distances)
+    top_k = 2
+    top_results = [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
+
+    # Display results
+    print("Query:", query)
+    print("\nTop Matches:")
+    for i, (chunk, dist) in enumerate(top_results, 1):
+        print(f"{i}. {chunk} (Distance: {dist:.2f})")
+
+
 if __name__ == "__main__":
     secret_sharing_test()
     print()
 
+    start_time = time.time()
     rag_plaintext()
+    print("[Plaintext] Elapsed time:", time.time() - start_time)
     print()
 
+    start_time = time.time()
     rag_with_shares()
+    print("[Secret Shares] Elapsed time:", time.time() - start_time)
     print()
 
+    # start_time = time.time()
+    # rag_with_paillier()
+    # print("[Paillier] Elapsed time:", time.time() - start_time)
+    # print()
