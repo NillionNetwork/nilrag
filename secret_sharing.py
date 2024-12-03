@@ -9,6 +9,13 @@ class Secret:
     def __repr__(self):
         return f"Secret(share={self.share}, precision={self.precision})"
 
+    def __sub__(self, other):
+        if self.precision != other.precision:
+            raise ValueError(f"Cannot subtract Secrets with different precisions: {self.precision} != {other.precision}")
+        new_share = self.share - other.share
+        return Secret(new_share, self.precision)
+
+
 # Additive Secret Sharing
 class AdditiveSecretSharing:
     # Initialize the secret sharing system.
@@ -57,17 +64,27 @@ class AdditiveSecretSharing:
                     all_shares[i].append(shares[i])
             return all_shares
 
+    def _secret_reveal(self, shares, i = -1):
+        if i >= 0:
+            modified_secret = sum(shares[party][i].share for party in range(self.num_parties))
+        else:
+            modified_secret = sum([s.share for s in shares])
+        modified_secret %= self.prime_mod
+        if modified_secret >= self.prime_mod // 2:
+            modified_secret -= self.prime_mod
+        return modified_secret
+
     # Reconstruct a secret or list of secrets from shares.
     def secret_reveal(self, shares_or_list):
         if all(isinstance(share, Secret) for share in shares_or_list):  # Single secret
-            modified_secret = sum([s.share for s in shares_or_list]) % self.prime_mod
+            modified_secret = self._secret_reveal(shares_or_list)
             share_precision = shares_or_list[0].precision
             assert all(share_precision == share.precision for share in shares_or_list)
             return self._from_fixed_point(modified_secret) if share_precision > 0 else modified_secret
         elif all(isinstance(share, list) or isinstance(share, np.ndarray) for share in shares_or_list):  # List of secrets
             secrets = []
             for i in range(len(shares_or_list[0])):
-                modified_secret = sum(shares_or_list[party][i].share for party in range(self.num_parties)) % self.prime_mod
+                modified_secret = self._secret_reveal(shares_or_list, i)
                 share_precision = shares_or_list[0][i].precision
                 assert all(share_precision == shares_or_list[party][i].precision for party in range(self.num_parties))
                 secrets.append(
@@ -97,7 +114,7 @@ def secret_sharing_test():
     assert secret == reconstructed_secret
 
     # Single float example
-    secret_float = 123.45
+    secret_float = -123.45
     shares_float = secret_sharing.secret_share(secret_float)
     print(f"Shares (single float): {shares_float}")
     reconstructed_float = secret_sharing.secret_reveal(shares_float)
@@ -111,4 +128,3 @@ def secret_sharing_test():
     reconstructed_list = secret_sharing.secret_reveal(shares_list)
     print(f"Reconstructed secrets (list): {reconstructed_list}")
     assert [secret == reconstructed for secret, reconstructed in zip(secret_list, reconstructed_list)]
-

@@ -35,21 +35,11 @@ def find_closest_chunks(query_embedding, chunks, embeddings, top_k=2):
     sorted_indices = np.argsort(distances)
     return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
 
-# Find the closest chunks to a query with secret sharing
-# def find_closest_chunks_private(query_embedding, chunks, embeddings, top_k=2):
-    # distances = [euclidean_distance(query_embedding, emb) for emb in embeddings]
-    # sorted_indices = np.argsort(distances)
-    # return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
-
 
 def rag_plaintext():
     file_path = "data.txt"
-
-    # Load paragraphs and preprocess
     paragraphs = load_file(file_path)
     chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)  # Reduced chunk size for clarity
-
-    # Generate embeddings
     embeddings = generate_embeddings_huggingface(chunks)
 
     # User Query
@@ -70,50 +60,52 @@ def rag_with_shares():
     secret_sharing = AdditiveSecretSharing(3, 2**31 - 1, precision)
 
     file_path = "data.txt"
-
-    # Load paragraphs and preprocess
     paragraphs = load_file(file_path)
     chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)  # Reduced chunk size for clarity
-
-    # Generate embeddings
     embeddings = generate_embeddings_huggingface(chunks)
-    embedding_shares = []
-    for embedding in embeddings:
-        embedding_shares.append(secret_sharing.secret_share(embedding))
-
-    # TODO(@jimouris): fix negatives
-    # reconstructed_embeddings = []
-    # for embedding_share in embedding_shares:
-    #     reconstructed_embeddings.append(secret_sharing.secret_reveal(embedding_share))
-    # for i in range(len(embeddings)):
-    #     for j in range(len(embeddings[i])):
-    #         e = round(float(embeddings[i][j]), precision)
-            # print(e, reconstructed_embeddings[i][j])
-            # assert e == reconstructed_embeddings[i][j]
-
-    embedding_length = len(embeddings[0])
+    all_embedding_shares = []
+    for embedding_share in embeddings:
+        all_embedding_shares.append(secret_sharing.secret_share(embedding_share))
+    assert len(all_embedding_shares[0]) == secret_sharing.num_parties
 
     # User Query
     query = "Tell me about places in Asia."
     query_embedding = generate_embeddings_huggingface([query])[0]
     query_embedding_shares = secret_sharing.secret_share(query_embedding)
+    assert len(query_embedding_shares) == secret_sharing.num_parties
 
-    # # Retrieve top results
-    # top_results = find_closest_chunks_private(query_embedding_shares, chunks, embedding_shares)
+    # Compute the differences between the query and all embeddings
+    all_differences_shares = []
+    for embedding_share in all_embedding_shares:
+        all_differences_shares.append(
+            [np.array(query_embedding_shares[party]) - np.array(embedding_share[party]) for party in range(secret_sharing.num_parties)]
+        )
 
-    # # Display results
-    # print("Query:", query)
-    # print("\nTop Matches:")
-    # for i, (chunk, dist) in enumerate(top_results, 1):
-    #     print(f"{i}. {chunk} (Distance: {dist:.2f})")
+    # Reveal
+    differences = []
+    for differences_share in all_differences_shares:
+        differences.append(secret_sharing.secret_reveal(differences_share))
+
+    # Compute Euclidean distances based on differences
+    distances = [np.linalg.norm(diff) for diff in differences]
+    # Retrieve top results
+    sorted_indices = np.argsort(distances)
+    top_k = 2
+    top_results = [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
+
+    # Display results
+    print("Query:", query)
+    print("\nTop Matches:")
+    for i, (chunk, dist) in enumerate(top_results, 1):
+        print(f"{i}. {chunk} (Distance: {dist:.2f})")
 
 
 if __name__ == "__main__":
-    # secret_sharing_test()
-    # print()
+    secret_sharing_test()
+    print()
 
-    # rag_plaintext()
-    # print()
+    rag_plaintext()
+    print()
 
     rag_with_shares()
     print()
