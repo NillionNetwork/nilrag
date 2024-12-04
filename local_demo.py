@@ -1,6 +1,6 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
-from secret_sharing import *
+from crypto.secret_sharing import *
 from phe import paillier
 import time
 
