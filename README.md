@@ -9,7 +9,7 @@ pip install -r requirements.txt
 ### FE
 1. Create embeddings the chunks
 2. Secret share the embeddings and the chunks
-3. Send those to NilDB
+3. Send those to NilDB: [store_fe_information](./store.py).
 
 ### Client
 1. Create embeddings of the query
