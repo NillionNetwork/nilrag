@@ -4,9 +4,35 @@
 pip install -r requirements.txt
 ```
 
-## Architecture
+# Architecture
 
-### FE
+## FE
+
+### 1. Initialization: Setting Up Schemas for nilDB
+This initialization step needs to happen before anything else. Note, the
+initialization only needs to be run once by the FE.
+
+The FE needs to introduce:
+1. `schema`: which is the structure of the data that the FE will store.
+    In this case we have `embedding` (`vector<integer>`) and `chunk`
+    (`string`). Each FE will upload multiple `embedding`s and `chunk`.
+
+2. `query`: This is the nilDB query that will compute the differences under
+    MPC between the stored FE embeddings and the client's embedding.
+
+To initialize the `schema` and `query` call:
+```shell
+python nilrag/initialization/initialize.py
+```
+This will print a response like:
+```shell
+Schema ID: c0587a1e-1180-4990-99f8-a7c17a700b80
+Query ID: 5a83eb59-71f0-4c8c-8bd7-27330dbec3f1
+```
+
+### 2.
+
+
 1. Create embeddings the chunks
 2. Secret share the embeddings and the chunks
 3. Send those to NilDB: [store_fe_information](./store.py).
