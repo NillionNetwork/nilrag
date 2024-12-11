@@ -1,7 +1,17 @@
-# RAG Example
+# nilRAG [![GitHub license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/NillionNetwork/nilrag/blob/main/LICENSE)
+Retrieval Augmented Generation (RAG) using Nillion's nilDB and nilQL.
+RAG is a technique that grants large language models information retrieval capabilities and context that they might be missing.
 
+
+## Set Up & Tests
+Install the required packages:
 ```shell
 pip install -r requirements.txt
+```
+
+Test RAG locally:
+```shell
+python -m unittest test.rag
 ```
 
 # Architecture
@@ -17,28 +27,47 @@ pip install -r requirements.txt
 ```
 
 
-## FE
+## FE (i.e., Data Owner)
 
-### 1. Initialization: Setting Up Schemas for nilDB
+### 1. Initialization (i.e., Setting Up Schemas for nilDB)
 This initialization step needs to happen before anything else. Note, the
-initialization only needs to be run once by the FE.
+initialization *only needs to be run once* by the FE.
 
-The FE needs to introduce:
+This initialization introduces:
 1. `schema`: which is the structure of the data that the FE will store.
     In this case we have `embedding` (`vector<integer>`) and `chunk`
     (`string`). Each FE will upload multiple `embedding`s and `chunk`.
-
 2. `query`: This is the nilDB query that will compute the differences under
     MPC between the stored FE embeddings and the client's embedding.
 
-To initialize the `schema` and `query` call:
-```shell
-python nilrag/initialize.py
+In [src/nilrag/nildb.py](src/nilrag/nildb.py), we provide an example of how to
+define the nilDB nodes. Modify this by adding more nodes and defining the
+correct URLs, ORGs, and Tokens:
+```python
+nilDB_nodes = [
+    Node(
+        url="https://nil-db.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
+        org="b3d3f64d-ef12-41b7-9ff1-0e7681947bea",
+        bearer_token="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0",
+    ),
+
+    # Add more nodes here...
+]
+nilDB = NilDB(nilDB_nodes)
 ```
-This will print a response like:
+
+After more nodes have been added, initialize the `schema` and `query` by
+calling:
 ```shell
-Schema ID: c0587a1e-1180-4990-99f8-a7c17a700b80
-Query ID: 5a83eb59-71f0-4c8c-8bd7-27330dbec3f1
+$ python src/nilrag/nildb.py                                                                                                                            [17:15:41]
+
+    No configuration file found. Initializing NilDB...
+    NilDB configuration saved to file.
+    NilDB instance: URL: https://nil-db.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1
+    Org: b3d3f64d-ef12-41b7-9ff1-0e7681947bea
+    Bearer Token: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0
+    Schema ID: 5973c7cc-cfcf-49fb-af4a-0e3db89fcbca
+    Query ID: f45d608a-26a9-4c9f-927f-a63505812db2
 ```
 
 ### 2. FE Uploads Documents

@@ -187,8 +187,8 @@ class NilDB:
 
 
     # Function to store embedding and chunk in RAG database
-    def upload_data(self, embeddings_shares, chunks_shares):
-        for node in self.nodes:
+    def upload_data(self, all_embeddings_shares, all_chunks_shares):
+        for i, node in enumerate(self.nodes):
             url = node.url + "/data/create"
             bearer_token = node.bearer_token
 
@@ -197,16 +197,19 @@ class NilDB:
                 "Authorization": bearer_token,
                 "Content-Type": "application/json"
             }
-            
-            print("embeddings_shares", embeddings_shares)
-            print("chunks", chunks_shares)
-            # assert len(chunks) == len(embeddings), f"Mismatch: {len(chunks)} chunks vs {len(embeddings)} embeddings."
+
+            embeddings_shares = all_embeddings_shares[i]
+            chunk_shares = all_chunks_shares[i]
+            assert len(chunk_shares) == len(embeddings_shares), f"Mismatch: {len(chunk_shares)} chunks vs {len(embeddings_shares)} embeddings."
+
+            print("embeddings_shares", all_embeddings_shares)
+            print("chunk_shares", chunk_shares)
 
             # # For every chunk, save the corresponding embedding
             # for (embedding, chunk) in zip(embeddings, chunks):
             #     # Transform [Share] into [int]
             #     vector_of_int_embedding = [e.share for e in embedding]
-            #     # Schema payload    
+            #     # Schema payload
             #     payload = {
             #         "schema": schema_id,
             #         "data": [
@@ -223,7 +226,7 @@ class NilDB:
 
             #     # Handle and return the response
             #     if response.status_code == 200:
-            #         print( 
+            #         print(
             #             {
             #                 "status_code": response.status_code,
             #                 "message": "Success",
@@ -239,7 +242,7 @@ class NilDB:
 
 
 if __name__ == "__main__":
-    
+
     json_file = "nildb_config.json"
 
     # Load NilDB from JSON file if it exists
@@ -251,10 +254,11 @@ if __name__ == "__main__":
         print("No configuration file found. Initializing NilDB...")
         nilDB_nodes = [
             Node(
-                "https://nil-db.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
-                "b3d3f64d-ef12-41b7-9ff1-0e7681947bea",
-                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0",
+                url="https://nil-db.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
+                org="b3d3f64d-ef12-41b7-9ff1-0e7681947bea",
+                bearer_token="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0",
             ),
+            # Add more nodes here if needed.
         ]
         nilDB = NilDB(nilDB_nodes)
 

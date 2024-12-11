@@ -1,6 +1,6 @@
 sentence_transformers
 numpy
-phe
 fastapi[standard]
 uvicorn
 pydantic
+nilql
