@@ -24,7 +24,7 @@ payload = {
                 "description": "The query embedding",
                 "type": "array",
                 "items": {
-                    "type": "integer"
+                    "type": "number"
                 }
             }
         },
