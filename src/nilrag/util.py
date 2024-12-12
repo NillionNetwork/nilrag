@@ -1,5 +1,6 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
+import nilql
 
 # Load text from file
 def load_file(file_path):
@@ -38,3 +39,24 @@ def find_closest_chunks(query_embedding, chunks, embeddings, top_k=2):
     sorted_indices = np.argsort(distances)
     return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
 
+
+PRECISION = 7
+SCALING_FACTOR = 10 ** PRECISION
+
+
+# Convert a floating-point value to fixed-point.
+def to_fixed_point(value):
+    return int(round(value * SCALING_FACTOR))
+
+
+# Convert a fixed-point value back to floating-point.
+def from_fixed_point(value):
+    return value / SCALING_FACTOR
+
+
+def encrypt_float_list(sk, lst):
+    return [nilql.encrypt(sk, to_fixed_point(l)) for l in lst]
+
+
+def encrypt_string_list(sk, lst):
+    return [nilql.encrypt(sk, l) for l in lst]

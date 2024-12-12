@@ -2,6 +2,8 @@ import requests
 import json
 from uuid import uuid4
 import os
+import nilql
+from util import create_chunks, encrypt_float_list, encrypt_string_list, generate_embeddings_huggingface, load_file, to_fixed_point
 
 class Node:
     def __init__(self, url, org, bearer_token):
@@ -258,6 +260,11 @@ if __name__ == "__main__":
                 org="b3d3f64d-ef12-41b7-9ff1-0e7681947bea",
                 bearer_token="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0",
             ),
+            Node(
+                url="https://nil-db.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
+                org="b3d3f64d-ef12-41b7-9ff1-0e7681947bea",
+                bearer_token="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0",
+            ),
             # Add more nodes here if needed.
         ]
         nilDB = NilDB(nilDB_nodes)
@@ -271,5 +278,37 @@ if __name__ == "__main__":
         print("NilDB configuration saved to file.")
 
     print("NilDB instance:", nilDB)
+    print()
+
+    # Set up modes of operation (i.e., keys)
+    additive_key = nilql.secret_key({'nodes': [{}] * len(nilDB.nodes)}, {'sum': True})
+    xor_key = nilql.secret_key({'nodes': [{}] * len(nilDB.nodes)}, {'store': True})
+
+    file_path = 'data/cities.txt'
+    paragraphs = load_file(file_path)
+    chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
+    embeddings = generate_embeddings_huggingface(chunks)
+
+    print(f"Embeddings[{len(embeddings)}][{len(embeddings[0])}]")
+    print(f"chunks[{len(chunks)}][{len(chunks[0])}]")
+
+    chunks_shares = []
+    for chunk in chunks:
+        chunks_shares.append(encrypt_string_list(xor_key, chunk))
+
+    embeddings_shares = []
+    for embedding in embeddings:
+        embeddings_shares.append(encrypt_float_list(additive_key, embedding))
+
+    print(f"embeddings_shares [{len(embeddings_shares)}][{len(embeddings_shares[0])}][{len(embeddings_shares[0][0])}]")
+    print(f"chunks_shares [{len(chunks_shares)}][{len(chunks_shares[0])}][{len(chunks_shares[0][0])}]")
+
+    query = "Tell me about places in Asia."
+    query_embedding = generate_embeddings_huggingface([query])[0]
+    query_embedding_shares = encrypt_float_list(additive_key, embedding)
+    print(f"query_embedding_shares [{len(query_embedding_shares)}][{len(query_embedding_shares[0])}]")
 
 
+
+    # num = nilql.decrypt(sk, shares)
+    # print("Decrypted:", num)
