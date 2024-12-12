@@ -3,4 +3,4 @@ numpy
 fastapi[standard]
 uvicorn
 pydantic
-nilql
+nilql==0.0.0a2

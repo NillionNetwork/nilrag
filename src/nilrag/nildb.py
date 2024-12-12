@@ -3,7 +3,7 @@ import json
 from uuid import uuid4
 import os
 import nilql
-from util import create_chunks, encrypt_float_list, encrypt_string_list, generate_embeddings_huggingface, load_file, to_fixed_point
+from util import create_chunks, decrypt_float_list, decrypt_string_list, encrypt_float_list, encrypt_string_list, generate_embeddings_huggingface, load_file, to_fixed_point
 
 class Node:
     def __init__(self, url, org, bearer_token):
@@ -308,7 +308,8 @@ if __name__ == "__main__":
     query_embedding_shares = encrypt_float_list(additive_key, embedding)
     print(f"query_embedding_shares [{len(query_embedding_shares)}][{len(query_embedding_shares[0])}]")
 
-
-
-    # num = nilql.decrypt(sk, shares)
-    # print("Decrypted:", num)
+    # l = [13.5, 12.3, 14.6]
+    # l_shares = encrypt_float_list(additive_key, l)
+    # print("l_shares:", l_shares)
+    # l_recovered = decrypt_float_list(additive_key, l_shares)
+    # print("l_recovered:", l_recovered)

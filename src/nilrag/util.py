@@ -58,5 +58,13 @@ def encrypt_float_list(sk, lst):
     return [nilql.encrypt(sk, to_fixed_point(l)) for l in lst]
 
 
+def decrypt_float_list(sk, lst):
+    return [from_fixed_point(nilql.decrypt(sk, l)) for l in lst]
+
+
 def encrypt_string_list(sk, lst):
     return [nilql.encrypt(sk, l) for l in lst]
+
+
+def decrypt_string_list(sk, lst):
+    return [nilql.decrypt(sk, l) for l in lst]
