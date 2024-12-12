@@ -1,6 +1,7 @@
 import requests
 import json
 from uuid import uuid4
+import base64
 import os
 import nilql
 from util import create_chunks, decrypt_float_list, decrypt_string_list, encrypt_float_list, encrypt_string_list, generate_embeddings_huggingface, load_file, to_fixed_point
@@ -43,8 +44,7 @@ class NilDB:
         self.nodes = nodes
 
     def __repr__(self):
-        for node in self.nodes:
-            return node.__repr__()
+        return "\n".join(f"\nNode({i}):\n{repr(node)}" for i, node in enumerate(self.nodes))
 
     def to_json(self, file_path):
         """Serialize NilDB to JSON and save to a file."""
@@ -189,58 +189,52 @@ class NilDB:
 
 
     # Function to store embedding and chunk in RAG database
-    def upload_data(self, all_embeddings_shares, all_chunks_shares):
-        for i, node in enumerate(self.nodes):
-            url = node.url + "/data/create"
-            bearer_token = node.bearer_token
+    def upload_data(self, lst_embedding_shares, lst_chunk_shares):
+        # lst_embeddings_shares [20][384][2]
+        # lst_chunks_shares [20][2][268]
 
-            # Authorization header with the provided token
-            headers = {
-                "Authorization": bearer_token,
-                "Content-Type": "application/json"
-            }
+        # Check sizes: same number of embeddings and chunks
+        assert len(lst_embedding_shares) == len(lst_chunk_shares), f"Mismatch: {len(lst_embedding_shares)} embeddings vs {len(lst_chunk_shares)} chunks."
+        
+        for (embedding_shares, chunk_shares) in zip(lst_embedding_shares, lst_chunk_shares):
+            # embeddings_shares [384][2]
+            # chunks_shares [2][268]
+            for i, node in enumerate(self.nodes):
+                url = node.url + "/data/create"
+                # Authorization header with the provided token
+                headers = {
+                    "Authorization": node.bearer_token,
+                    "Content-Type": "application/json"
+                }
+                # Join the shares of one embedding in one vector
+                node_i_embedding_shares = [e[i] for e in embedding_shares]
+                node_i_chunk_share = chunk_shares[i]
+                # encode to be parsed in json
+                encoded_node_i_chunk_share = base64.b64encode(node_i_chunk_share).decode('utf-8')
+                # Schema payload
+                payload = {
+                    "schema": node.schema_id,
+                    "data": [
+                        {
+                            "_id": str(uuid4()),
+                            "embedding": node_i_embedding_shares,
+                            "chunk": encoded_node_i_chunk_share
+                        }
+                    ]
+                }
 
-            embeddings_shares = all_embeddings_shares[i]
-            chunk_shares = all_chunks_shares[i]
-            assert len(chunk_shares) == len(embeddings_shares), f"Mismatch: {len(chunk_shares)} chunks vs {len(embeddings_shares)} embeddings."
-
-            print("embeddings_shares", all_embeddings_shares)
-            print("chunk_shares", chunk_shares)
-
-            # # For every chunk, save the corresponding embedding
-            # for (embedding, chunk) in zip(embeddings, chunks):
-            #     # Transform [Share] into [int]
-            #     vector_of_int_embedding = [e.share for e in embedding]
-            #     # Schema payload
-            #     payload = {
-            #         "schema": schema_id,
-            #         "data": [
-            #             {
-            #                 "_id": str(uuid4()),
-            #                 "embedding": vector_of_int_embedding,
-            #                 "chunk": chunk
-            #             }
-            #         ]
-            #     }
-
-            #     # Send POST request
-            #     response = requests.post(url, headers=headers, data=json.dumps(payload))
-
-            #     # Handle and return the response
-            #     if response.status_code == 200:
-            #         print(
-            #             {
-            #                 "status_code": response.status_code,
-            #                 "message": "Success",
-            #                 "response_json": response.json()
-            #             }
-            #         )
-            #     else:
-            #         return  {
-            #                 "status_code": response.status_code,
-            #                 "message": "Failed to store data",
-            #                 "response_json": response.json()
-            #                 }
+                # Send POST request
+                response = requests.post(url, headers=headers, data=json.dumps(payload))
+                if response.status_code != 200:
+                    raise ValueError(f"Error in POST request: {response.status_code}, {response.text}")
+                else:
+                    print(
+                        {
+                            "status_code": response.status_code,
+                            "message": "Success",
+                            "response_json": response.json()
+                        }
+                    )
 
 
 if __name__ == "__main__":
@@ -284,17 +278,20 @@ if __name__ == "__main__":
     additive_key = nilql.secret_key({'nodes': [{}] * len(nilDB.nodes)}, {'sum': True})
     xor_key = nilql.secret_key({'nodes': [{}] * len(nilDB.nodes)}, {'store': True})
 
+    # Create chunks nd embeddings
     file_path = 'data/cities.txt'
     paragraphs = load_file(file_path)
     chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
     embeddings = generate_embeddings_huggingface(chunks)
+    print("Chunks: \n", chunks)
+    print("Chunks: \n", chunks[0])
 
     print(f"Embeddings[{len(embeddings)}][{len(embeddings[0])}]")
     print(f"chunks[{len(chunks)}][{len(chunks[0])}]")
 
     chunks_shares = []
     for chunk in chunks:
-        chunks_shares.append(encrypt_string_list(xor_key, chunk))
+        chunks_shares.append(nilql.encrypt(xor_key, chunk))
 
     embeddings_shares = []
     for embedding in embeddings:
@@ -303,10 +300,13 @@ if __name__ == "__main__":
     print(f"embeddings_shares [{len(embeddings_shares)}][{len(embeddings_shares[0])}][{len(embeddings_shares[0][0])}]")
     print(f"chunks_shares [{len(chunks_shares)}][{len(chunks_shares[0])}][{len(chunks_shares[0][0])}]")
 
-    query = "Tell me about places in Asia."
-    query_embedding = generate_embeddings_huggingface([query])[0]
-    query_embedding_shares = encrypt_float_list(additive_key, embedding)
-    print(f"query_embedding_shares [{len(query_embedding_shares)}][{len(query_embedding_shares[0])}]")
+    # Upload data to nilDB
+    nilDB.upload_data(embeddings_shares, chunks_shares)
+    
+    # query = "Tell me about places in Asia."
+    # query_embedding = generate_embeddings_huggingface([query])[0]
+    # query_embedding_shares = encrypt_float_list(additive_key, embedding)
+    # print(f"query_embedding_shares [{len(query_embedding_shares)}][{len(query_embedding_shares[0])}]")
 
     # l = [13.5, 12.3, 14.6]
     # l_shares = encrypt_float_list(additive_key, l)

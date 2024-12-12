@@ -1,0 +1,20 @@
+[project]
+name = "nilrag"
+version = "0.1.0"
+description = "nilRAG SDK"
+authors = [
+    { name = "Manuel Santos", email = "manuel.santos@nillion.com" },
+    { name = "Dimitris Mouris", email = "dimitris@nillion.com" }
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.115.6",
+    "nilql==0.0.0a2",
+    "numpy>=2.2.0",
+    "pydantic>=2.10.3",
+    "sentence-transformers>=3.3.1",
+    "uvicorn>=0.32.1",
+]
+[tool.setuptools.packages]
+find = { include = ["src"] }
