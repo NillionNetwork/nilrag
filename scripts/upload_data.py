@@ -43,7 +43,7 @@ def rag_fe_store_embedding_and_chunk(embeddings, chunks, url, schema, bearer_tok
     for (embedding, chunk) in zip(embeddings, chunks):
         # Transform [Share] into [int]
         vector_of_int_embedding = [e.share for e in embedding]
-        # Schema payload    
+        # Schema payload
         payload = {
             "schema": schema,
             "data": [
@@ -60,7 +60,7 @@ def rag_fe_store_embedding_and_chunk(embeddings, chunks, url, schema, bearer_tok
 
         # Handle and return the response
         if response.status_code == 200:
-            print( 
+            print(
                 {
                     "status_code": response.status_code,
                     "message": "Success",
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     bearer_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0"  # Replace with your token
     url = "https://nil-db.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/data/create"
 
-    # Local secret sharing. 
+    # Local secret sharing.
     precision = 7
     secret_sharing = AdditiveSecretSharing(2, 2**31 - 1, precision)
 
@@ -102,8 +102,8 @@ if __name__ == "__main__":
         # Store shares to each server
         array = np.array(all_embedding_shares)
         all_embedding_shares_for_party = array[:, party] # shares for party
-        
-        # Stores the embedding shares of party 
+
+        # Stores the embedding shares of party
         # Note: in the real deployment we need to change the url, schema and bearer_token for each database
         result = rag_fe_store_embedding_and_chunk(all_embedding_shares_for_party, chunks, url, schema, bearer_token)
 
