@@ -16,7 +16,7 @@ headers = {
 
 # Schema payload
 payload = {
-        "id": "fe4124dc-1f1a-4f63-b827-fb6158bafcf9",
+        "id": "4f96c43a-41b0-4aa2-8c42-729688e20c4a",
         "variables": {
              "query_embedding": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         }

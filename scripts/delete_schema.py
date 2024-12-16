@@ -11,7 +11,7 @@ headers = {
 
 # Optional payload for DELETE (if the API requires it, adjust accordingly)
 payload = {
-    "id": "5cb9c7c0-7e3b-4434-9a47-fc1135ea894a"
+    "id": "5b5ef0f7-af03-4aea-a7ee-aacf055d99cc"
 }
 
 # Send DELETE request

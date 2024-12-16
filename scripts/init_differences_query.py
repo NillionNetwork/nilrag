@@ -18,7 +18,7 @@ headers = {
 payload = {
         "org": "b3d3f64d-ef12-41b7-9ff1-0e7681947bea",
         "name": "Returns the difference between the nilDB embeddings and the query embedding",
-        "schema": "162ff74d-6614-48a3-bb61-494ff95326b5",
+        "schema": "3465b238-895c-49ba-9399-433d1491bb7a",
         "variables": {
             "query_embedding": {
                 "description": "The query embedding",
