@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 import numpy as np
 # from crypto.secret_sharing import *
+import base64
 import logging
 from .nildb import NilDB
 from .util import generate_embeddings_huggingface, encrypt_float_list, decrypt_float_list
@@ -59,7 +60,6 @@ async def process_client_query(payload: Query):
         # 1.1 Load NilDB from JSON file if it exists
         json_file = "nildb_config.json"
         if os.path.exists(json_file):
-            print("Loading NilDB configuration from file...")
             nilDB = NilDB.from_json(json_file)
         else:
             raise Exception("No nildb config file found in the TEE server.")
@@ -91,6 +91,7 @@ async def process_client_query(payload: Query):
         logger.debug("Compute distances and sort...")
         # 4.1 Restructure the array of differences so it can be revealed next by nilQL.
         difference_shares_by_id = {}
+        # Group the differences by _id
         for difference_shares_per_party in difference_shares:
             for share in difference_shares_per_party:
                 id = share['_id']
@@ -98,6 +99,11 @@ async def process_client_query(payload: Query):
                 if id not in difference_shares_by_id:
                     difference_shares_by_id[id] = []
                 difference_shares_by_id[id].append(share['difference']) 
+        # Transpose the lists for each _id
+        difference_shares_by_id = {
+            id: np.array(differences).T.tolist()
+            for id, differences in difference_shares_by_id.items()
+        }
         # 4.2 Decrypt and compute distances
         reconstructed = [
             {
@@ -107,7 +113,6 @@ async def process_client_query(payload: Query):
             for id, difference_shares in difference_shares_by_id.items()
         ]
         # 4.3 Sort id list based on the corresponding distances
-        # Assuming reconstructed is already defined
         sorted_ids = sorted(reconstructed, key=lambda x: x['distances'])
 
 
@@ -126,7 +131,8 @@ async def process_client_query(payload: Query):
                 # Add the chunk list to the corresponding _id
                 if id not in chunk_shares_by_id:
                     chunk_shares_by_id[id] = []
-                chunk_shares_by_id[id].append(share['chunk']) 
+                binary_chunk = base64.b64decode(share['chunk'])
+                chunk_shares_by_id[id].append(binary_chunk) 
         # 4.2 Decrypt and compute distances
         top_results = [
             {
@@ -137,7 +143,7 @@ async def process_client_query(payload: Query):
         ]
 
         # Step 6: Append top results to LLM query
-        logger.debug("Query top k chunks...")
+        logger.debug(" Append top results to LLM query...")
         formatted_results = "\n".join(
             f"- {str(result['distances'])}" for result in top_results
         )
@@ -148,7 +154,7 @@ async def process_client_query(payload: Query):
         final_response = {"response": "Placeholder for RAG/LLM output"}
         logger.info("Successfully processed query. Returning response.")
 
-        return final_response
+        return top_results
 
     except Exception as e:
         logger.error("An error occurred: %s", str(e))

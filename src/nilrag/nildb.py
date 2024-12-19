@@ -7,40 +7,37 @@ import nilql
 from .util import create_chunks, decrypt_float_list, decrypt_string_list, encrypt_float_list, encrypt_string_list, generate_embeddings_huggingface, load_file, to_fixed_point
 
 class Node:
-    def __init__(self, url, org, bearer_token):
+    def __init__(self, url, owner, bearer_token, schema_id=None, diff_query_id=None):
         self.url = url[:-1] if url.endswith('/') else url
-        self.org = str(org)
+        self.owner = str(owner)
         self.bearer_token = str(bearer_token)
-        self.schema_id = None
-        self.diff_query_id = None
-        self.chunk_query_id = None
+        self.schema_id = schema_id
+        self.diff_query_id = diff_query_id
+
 
     def __repr__(self):
         return f"URL: {self.url}\
-            \nOrg: {self.org}\
+            \nowner: {self.owner}\
             \nBearer Token: {self.bearer_token}\
             \nSchema ID: {self.schema_id}\
-            \nDifferences Query ID: {self.diff_query_id}\
-            \nChunk Query ID: {self.chunk_query_id}"
+            \nDifferences Query ID: {self.diff_query_id}"
 
     def to_dict(self):
         """Convert Node to a dictionary for serialization."""
         return {
             "url": self.url,
-            "org": self.org,
+            "owner": self.owner,
             "bearer_token": self.bearer_token,
             "schema_id": self.schema_id,
             "diff_query_id": self.diff_query_id,
-            "chunk_query_id": self.chunk_query_id
         }
 
     @classmethod
     def from_dict(cls, data):
         """Create a Node instance from a dictionary."""
-        node = cls(data["url"], data["org"], data["bearer_token"])
+        node = cls(data["url"], data["owner"], data["bearer_token"])
         node.schema_id = data.get("schema_id")
         node.diff_query_id = data.get("diff_query_id")
-        node.chunk_query_id = data.get("chunk_query_id")
         return node
 
 class NilDB:
@@ -68,6 +65,8 @@ class NilDB:
 
     def init_schema(self):
         # Send POST request
+        schema_id = str(uuid4()) # the schema_id is assumed to be the same accross different nildb instances
+        node.schema_id = schema_id
         for node in self.nodes:
             url = node.url + "/schemas"
 
@@ -76,11 +75,12 @@ class NilDB:
                 "Content-Type": "application/json"
             }
             payload = {
-                "org": node.org,
-                "name": "Nillion Users 4",
+                "_id": schema_id,
+                "owner": node.owner,
+                "name": "nilrag data",
                 "keys": ["_id"],
                 "schema": {
-                    "$schema": "http://json-schema.org/draft-07/schema#",
+                    "$schema": "http://json-schema.owner/draft-07/schema#",
                     "title": "NILLION USERS",
                     "type": "array",
                     "items": {
@@ -88,7 +88,8 @@ class NilDB:
                         "properties": {
                             "_id": {
                                 "type": "string",
-                                "format": "uuid"
+                                "format": "uuid",
+                                "coerce": True
                             },
                             "embedding": {
                                 "description": "Chunks embeddings",
@@ -110,18 +111,13 @@ class NilDB:
             response = requests.post(url, headers=headers, data=json.dumps(payload))
             if response.status_code != 200:
                 raise ValueError(f"Error in POST request: {response.status_code}, {response.text}")
-            try:
-                schema_id = response.json().get("data")
-                if schema_id is None:
-                    raise ValueError(f"Error in Response: {response.text}")
-                node.schema_id = schema_id
-            except ValueError as e:
-                print(f"Failed to parse JSON response: {e}")
-                return response.text
+            print("Response JSON:", response.json())
 
 
     def init_diff_query(self):
         # Send POST request
+        diff_query_id = str(uuid4()) # the diff_query_id is assumed to be the same accross different nildb instances
+        node.diff_query_id = diff_query_id
         for node in self.nodes:
             url = node.url + "/queries"
 
@@ -130,7 +126,8 @@ class NilDB:
                 "Content-Type": "application/json"
             }
             payload = {
-                "org": node.org,
+                "_id": node.diff_query_id,
+                "owner": node.owner,
                 "name": "Returns the difference between the nilDB embeddings and the query embedding",
                 "schema": node.schema_id,
                 "variables": {
@@ -178,43 +175,10 @@ class NilDB:
                     }
                 ]
             }
-
             response = requests.post(url, headers=headers, data=json.dumps(payload))
             if response.status_code != 200:
                 raise ValueError(f"Error in POST request: {response.status_code}, {response.text}")
-            try:
-                diff_query_id = response.json().get("data")
-                if diff_query_id is None:
-                    raise ValueError(f"Error in Response: {response.text}")
-                node.diff_query_id = diff_query_id
-            except ValueError as e:
-                print(f"Failed to parse JSON response: {e}")
-                return response.text
-            
-    def init_chunk_query(self):
-        # Send POST request
-        for node in self.nodes:
-            url = node.url + "/queries"
-
-            headers = {
-                "Authorization": node.bearer_token,
-                "Content-Type": "application/json"
-            }
-            
-            # TODO: waiting for nildb development to retrieve by id
-            payload = None 
-
-            response = requests.post(url, headers=headers, data=json.dumps(payload))
-            if response.status_code != 200:
-                raise ValueError(f"Error in POST request: {response.status_code}, {response.text}")
-            try:
-                chunk_query_id = response.json().get("data")
-                if chunk_query_id is None:
-                    raise ValueError(f"Error in Response: {response.text}")
-                node.chunk_query_id = chunk_query_id
-            except ValueError as e:
-                print(f"Failed to parse JSON response: {e}")
-                return response.text
+            print("Response JSON:", response.json())
 
 
     def diff_query_execute(self, query_embedding_shares):
@@ -267,32 +231,52 @@ class NilDB:
     
 
     def chunk_query_execute(self, chunk_ids):
-        
-        chunks_shares = []
-        for chunk_id in chunk_ids:
-            chunk_shares = []
-            for i, node in enumerate(self.nodes):
-                url = node.url + "/queries/execute"
-                # Authorization header with the provided token
-                headers = {
-                    "Authorization": node.bearer_token,
-                    "Content-Type": "application/json"
+
+        chunk_shares = []
+        for node in self.nodes:
+            url = node.url + "/data/read"
+            # Authorization header with the provided token
+            headers = {
+                "Authorization": node.bearer_token,
+                "Content-Type": "application/json"
+            }
+
+            # Schema payload
+            payload = {
+                "schema": node.schema_id,
+                "filter": {
+                    "_id": {
+                        "$in": chunk_ids
+                    }
                 }
-                chunk_query_id = node.chunk_query_id
+            }
 
-                # Schema payload
-                payload = {
-                        "id": str(chunk_query_id),
-                        "variables": {
-                            "query_embedding": chunk_id
-                        }
-                }
+            # Send POST request
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
+            if response.status_code != 200:
+                raise ValueError(f"Error in POST request: {response.status_code}, {response.text}")
+            try:
+                # e.g. response = {
+                #   'data': [
+                #       {
+                #           '_id': 'f1fc5d71-24a8-4b38-9c5b-0cba1e615acb', 
+                #           'difference': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                #       }, 
+                #       {   
+                #           '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964', 
+                #           'difference': [9, 19, 29, 39, 49, 59, 69, 79, 89, 99]
+                #       }
+                #    ]
+                # }
+                chunk_shares_party_i = response.json().get("data")
+                if chunk_shares_party_i is None:
+                    raise ValueError(f"Error in Response: {response.text}")
+                chunk_shares.append(chunk_shares_party_i)
+            except ValueError as e:
+                print(f"Failed to parse JSON response: {e}")
+                return response.text
 
-                # TODO: change chuck query
-                # chunk_shares.append(share)
-            chunks_shares.append(chunk_shares)
-
-        return chunks_shares
+        return chunk_shares
 
 
 
@@ -360,15 +344,23 @@ if __name__ == "__main__":
         # Initialize NilDB if no configuration file exists
         print("No configuration file found. Initializing NilDB...")
         nilDB_nodes = [
+            # node-a50d
             Node(
-                url="https://nil-db.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
-                org="b3d3f64d-ef12-41b7-9ff1-0e7681947bea",
-                bearer_token="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0",
+                url="https://nildb-node-a50d.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
+                owner="did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
+                bearer_token="Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NksifQ.eyJpYXQiOjE3MzQ0NDI2NjUsImV4cCI6MTczNTA0MjY2NSwiYXVkIjoiZGlkOm5pbDp0ZXN0bmV0Om5pbGxpb24xNWxjanhnYWZndnM0MHJ5cHZxdTczZ2Z2eDZwa3g3dWdkamE1MGQiLCJpc3MiOiJkaWQ6bmlsOnRlc3RuZXQ6bmlsbGlvbjFxaHF1eXQyMGVxMHZ1dGp6dzZ2NnprNzUyeTZteTRrcnhjbW5uMiJ9.6zscB_D2KH3qSx00yHMeRVU9xpj-J0wKEFRoJg5fmZJyDgtN55Fypd69YxLWaVtze6l848X_r29QOIPM__QEDw",
             ),
+            # node-dvml
             Node(
-                url="https://nil-db.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
-                org="b3d3f64d-ef12-41b7-9ff1-0e7681947bea",
-                bearer_token="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiM2QzZjY0ZC1lZjEyLTQxYjctOWZmMS0wZTc2ODE5NDdiZWEiLCJ0eXBlIjoiYWNjZXNzLXRva2VuIiwiaWF0IjoxNzMyODkzMzkwfQ.x62bCqtz6mwYhz9ZKXYuD2EIu073fxmPKCh6UkWyox0",
+                url="https://nildb-node-dvml.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
+                owner="did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
+                bearer_token="Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NksifQ.eyJpYXQiOjE3MzQ0NDI2MzMsImV4cCI6MTczNTA0MjYzMywiYXVkIjoiZGlkOm5pbDp0ZXN0bmV0Om5pbGxpb24xZGZoNDRjczRoMnplazV2aHp4a2Z2ZDl3MjhzNXE1Y2RlcGR2bWwiLCJpc3MiOiJkaWQ6bmlsOnRlc3RuZXQ6bmlsbGlvbjFxaHF1eXQyMGVxMHZ1dGp6dzZ2NnprNzUyeTZteTRrcnhjbW5uMiJ9.drcbqEBwWvSCOJvGfLX1FlvIwiXt-vXT6NxTsgRjkbsGbPLKg94KVYr0mcggfLXaMwarkAVdTxfanOX3otu4Bw",
+            ),
+            # node-guue
+            Node(
+                url="https://nildb-node-guue.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
+                owner="did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
+                bearer_token="Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NksifQ.eyJpYXQiOjE3MzQ0NDI0MjYsImV4cCI6MTczNTA0MjQyNiwiYXVkIjoiZGlkOm5pbDp0ZXN0bmV0Om5pbGxpb24xOXQwZ2VmbTdwcjZ4amtxMnNqNDBmMHJzN3d6bmxkZ2ZnNGd1dWUiLCJpc3MiOiJkaWQ6bmlsOnRlc3RuZXQ6bmlsbGlvbjFxaHF1eXQyMGVxMHZ1dGp6dzZ2NnprNzUyeTZteTRrcnhjbW5uMiJ9._67NLp51SPK1nk7y-nMhzsD67Rp3HwlRxvC9w82cHgQBzL2XpkynptTIEy7kLJifHeUhdbtstbiGfL6MDtIlQQ",
             ),
             # Add more nodes here if needed.
         ]
@@ -377,7 +369,6 @@ if __name__ == "__main__":
         # Initialize schema and queries
         nilDB.init_schema()
         nilDB.init_diff_query()
-        nilDB.init_chunk_query()
 
         # Save NilDB to JSON file
         nilDB.to_json(json_file)
@@ -394,12 +385,14 @@ if __name__ == "__main__":
     file_path = 'data/cities.txt'
     paragraphs = load_file(file_path)
     chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
+    print('Generating embeddings...')
     embeddings = generate_embeddings_huggingface(chunks)
-    print("Chunks: \n", chunks)
-    print("Chunks: \n", chunks[0])
+    print('Embeddings generated!')
+    # print("Chunks: \n", chunks)
+    # print("Chunks: \n", chunks[0])
 
-    print(f"Embeddings[{len(embeddings)}][{len(embeddings[0])}]")
-    print(f"chunks[{len(chunks)}][{len(chunks[0])}]")
+    # print(f"Embeddings[{len(embeddings)}][{len(embeddings[0])}]")
+    # print(f"chunks[{len(chunks)}][{len(chunks[0])}]")
 
     chunks_shares = []
     for chunk in chunks:
@@ -409,19 +402,11 @@ if __name__ == "__main__":
     for embedding in embeddings:
         embeddings_shares.append(encrypt_float_list(additive_key, embedding))
 
-    print(f"embeddings_shares [{len(embeddings_shares)}][{len(embeddings_shares[0])}][{len(embeddings_shares[0][0])}]")
-    print(f"chunks_shares [{len(chunks_shares)}][{len(chunks_shares[0])}][{len(chunks_shares[0][0])}]")
+    # print(f"embeddings_shares [{len(embeddings_shares)}][{len(embeddings_shares[0])}][{len(embeddings_shares[0][0])}]")
+    # print(f"chunks_shares [{len(chunks_shares)}][{len(chunks_shares[0])}][{len(chunks_shares[0][0])}]")
 
     # Upload data to nilDB
+    print('Uploading data:')
     nilDB.upload_data(embeddings_shares, chunks_shares)
     
-    # query = "Tell me about places in Asia."
-    # query_embedding = generate_embeddings_huggingface([query])[0]
-    # query_embedding_shares = encrypt_float_list(additive_key, embedding)
-    # print(f"query_embedding_shares [{len(query_embedding_shares)}][{len(query_embedding_shares[0])}]")
 
-    # l = [13.5, 12.3, 14.6]
-    # l_shares = encrypt_float_list(additive_key, l)
-    # print("l_shares:", l_shares)
-    # l_recovered = decrypt_float_list(additive_key, l_shares)
-    # print("l_recovered:", l_recovered)
