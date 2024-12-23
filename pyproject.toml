@@ -16,5 +16,13 @@ dependencies = [
     "sentence-transformers>=3.3.1",
     "uvicorn>=0.32.1",
 ]
-[tool.setuptools.packages]
-find = { include = ["src"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["nilrag*"]
+
+[build-system]
+requires = [
+    "setuptools>=68.0"
+]
+build-backend = "setuptools.build_meta"

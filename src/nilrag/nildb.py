@@ -2,12 +2,34 @@ import requests
 import json
 from uuid import uuid4
 import base64
-import os
-import nilql
-from .util import create_chunks, decrypt_float_list, decrypt_string_list, encrypt_float_list, encrypt_string_list, generate_embeddings_huggingface, load_file, to_fixed_point
 
 class Node:
+    """
+    Represents a node in the NilDB network.
+
+    A Node contains connection information and identifiers for a specific NilDB instance,
+    including the URL endpoint, owner identifier, authentication token, and IDs for 
+    associated schema and queries.
+
+    Attributes:
+        url (str): The base URL endpoint for the node, with trailing slash removed
+        owner (str): The owner identifier for this node
+        bearer_token (str): Authentication token for API requests
+        schema_id (str, optional): ID of the schema associated with this node
+        diff_query_id (str, optional): ID of the differences query for this node
+    """
+
     def __init__(self, url, owner, bearer_token, schema_id=None, diff_query_id=None):
+        """
+        Initialize a new Node instance.
+
+        Args:
+            url (str): Base URL endpoint for the node
+            owner (str): Owner identifier
+            bearer_token (str): Authentication token
+            schema_id (str, optional): Associated schema ID
+            diff_query_id (str, optional): Associated differences query ID
+        """
         self.url = url[:-1] if url.endswith('/') else url
         self.owner = str(owner)
         self.bearer_token = str(bearer_token)
@@ -16,6 +38,12 @@ class Node:
 
 
     def __repr__(self):
+        """
+        Returns a string representation of the Node instance.
+
+        Returns:
+            str: Multi-line string containing all Node attributes
+        """
         return f"URL: {self.url}\
             \nowner: {self.owner}\
             \nBearer Token: {self.bearer_token}\
@@ -23,7 +51,12 @@ class Node:
             \nDifferences Query ID: {self.diff_query_id}"
 
     def to_dict(self):
-        """Convert Node to a dictionary for serialization."""
+        """
+        Convert Node instance to a dictionary for serialization.
+
+        Returns:
+            dict: Dictionary containing all Node attributes
+        """
         return {
             "url": self.url,
             "owner": self.owner,
@@ -34,21 +67,51 @@ class Node:
 
     @classmethod
     def from_dict(cls, data):
-        """Create a Node instance from a dictionary."""
+        """
+        Create a Node instance from a dictionary.
+
+        Args:
+            data (dict): Dictionary containing Node attributes
+
+        Returns:
+            Node: New Node instance initialized with provided data
+        """
         node = cls(data["url"], data["owner"], data["bearer_token"])
         node.schema_id = data.get("schema_id")
         node.diff_query_id = data.get("diff_query_id")
         return node
 
 class NilDB:
+    """
+    A class to manage distributed nilDB nodes for secure data storage and retrieval.
+
+    This class handles initialization, querying, and data upload across multiple nilDB nodes
+    while maintaining data security through secret sharing.
+
+    Attributes:
+        nodes (list): List of Node instances representing the distributed nilDB nodes
+    """
+
     def __init__(self, nodes):
+        """
+        Initialize NilDB with a list of nilDB nodes.
+
+        Args:
+            nodes (list): List of Node instances representing nilDB nodes
+        """
         self.nodes = nodes
 
     def __repr__(self):
+        """Return string representation of NilDB showing all nodes."""
         return "\n".join(f"\nNode({i}):\n{repr(node)}" for i, node in enumerate(self.nodes))
 
     def to_json(self, file_path):
-        """Serialize NilDB to JSON and save to a file."""
+        """
+        Serialize NilDB instance to JSON and save to a file.
+
+        Args:
+            file_path (str): Path to save the JSON file
+        """
         data = {
             "nodes": [node.to_dict() for node in self.nodes]
         }
@@ -57,14 +120,31 @@ class NilDB:
 
     @classmethod
     def from_json(cls, file_path):
-        """Deserialize NilDB from a JSON file."""
+        """
+        Create a NilDB instance from a JSON file.
+
+        Args:
+            file_path (str): Path to the JSON configuration file
+
+        Returns:
+            NilDB: New instance initialized with data from the JSON file
+        """
         with open(file_path, "r") as f:
             data = json.load(f)
         nodes = [Node.from_dict(node_data) for node_data in data["nodes"]]
         return cls(nodes)
 
     def init_schema(self):
-        # Send POST request
+        """
+        Initialize the nilDB schema across all nodes.
+        
+        Creates a schema for storing embeddings and chunks with a common schema ID
+        across all nilDB nodes. The schema defines the structure for storing document
+        embeddings and their corresponding text chunks.
+        
+        Raises:
+            ValueError: If schema creation fails on any nilDB node
+        """
         schema_id = str(uuid4()) # the schema_id is assumed to be the same accross different nildb instances
         node.schema_id = schema_id
         for node in self.nodes:
@@ -115,7 +195,15 @@ class NilDB:
 
 
     def init_diff_query(self):
-        # Send POST request
+        """
+        Initialize the difference query across all nilDB nodes.
+        
+        Creates a query that calculates the difference between stored embeddings
+        and a query embedding. This query is used for similarity search operations.
+        
+        Raises:
+            ValueError: If query creation fails on any nilDB node
+        """
         diff_query_id = str(uuid4()) # the diff_query_id is assumed to be the same accross different nildb instances
         node.diff_query_id = diff_query_id
         for node in self.nodes:
@@ -181,8 +269,78 @@ class NilDB:
             print("Response JSON:", response.json())
 
 
-    def diff_query_execute(self, query_embedding_shares):
-        
+    def diff_query_execute(self, nilql_query_embedding):
+        """
+        Execute the difference query across all nilDB nodes.
+
+        Args:
+            nilql_query_embedding (list): Encrypted query embedding for all nilDB node.
+                Example:
+                [
+                    # First element of embedding vector, shared across nodes
+                    [
+                        b'share_for_node_0',  # Share for node 0
+                        b'share_for_node_1',  # Share for node 1
+                        b'share_for_node_2'   # Share for node 2
+                    ],
+                    # Second element of embedding vector, shared across nodes  
+                    [
+                        b'share_for_node_0',
+                        b'share_for_node_1', 
+                        b'share_for_node_2'
+                    ],
+                    # And so on for each element in the embedding vector...
+                ]
+
+        Returns:
+            list: List of difference shares from each nilDB node
+                Example:
+                [
+                    [  # Shares from node 0
+                        {
+                            '_id': 'f1fc5d71-24a8-4b38-9c5b-0cba1e615acb',
+                            'difference': [0, 1, 2, 3, 4]
+                        },
+                        {
+                            '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964', 
+                            'difference': [5, 6, 7, 8, 9]
+                        }
+                    ],
+                    [  # Shares from node 1
+                        {
+                            '_id': 'f1fc5d71-24a8-4b38-9c5b-0cba1e615acb',
+                            'difference': [10, 11, 12, 13, 14]
+                        },
+                        {
+                            '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964',
+                            'difference': [15, 16, 17, 18, 19]
+                        }
+                    ]
+                ]
+
+        Example usage:
+            # Initialize secret key for 3 parties
+            additive_key = nilql.secret_key({'nodes': [{}] * 3}, {'sum': True})
+            
+            # Generate query embedding from text
+            query_text = "what is the capital of France?"
+            query_embedding = generate_embeddings_huggingface([query_text])[0]
+            
+            # Encrypt and share the query embedding
+            nilql_query_embedding = encrypt_float_list(additive_key, query_embedding)
+            
+            # Execute query and get differences
+            difference_shares = nildb.diff_query_execute(nilql_query_embedding)
+
+        Raises:
+            ValueError: If query execution fails on any nilDB node
+        """
+
+        # Rearrange nilql_query_embedding to group by party
+        query_embedding_shares = [
+            [entry[party] for entry in nilql_query_embedding]
+            for party in range(len(self.nodes))
+        ]
         difference_shares = []
 
         for i, node in enumerate(self.nodes):
@@ -207,18 +365,6 @@ class NilDB:
             if response.status_code != 200:
                 raise ValueError(f"Error in POST request: {response.status_code}, {response.text}")
             try:
-                # e.g. response = {
-                #   'data': [
-                #       {
-                #           '_id': 'f1fc5d71-24a8-4b38-9c5b-0cba1e615acb', 
-                #           'difference': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-                #       }, 
-                #       {   
-                #           '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964', 
-                #           'difference': [9, 19, 29, 39, 49, 59, 69, 79, 89, 99]
-                #       }
-                #    ]
-                # }
                 difference_shares_party_i = response.json().get("data")
                 if difference_shares_party_i is None:
                     raise ValueError(f"Error in Response: {response.text}")
@@ -231,7 +377,61 @@ class NilDB:
     
 
     def chunk_query_execute(self, chunk_ids):
+        """
+        Retrieve chunks by their IDs from all nilDB nodes.
 
+        Args:
+            chunk_ids (list): List of chunk IDs to retrieve
+
+        Returns:
+            list: List of chunk shares from each nilDB node. For example, with 3 nodes and 2 chunks:
+                [
+                    # Shares from node 1
+                    [
+                        {
+                            '_id': '123e4567-e89b-12d3-a456-426614174000',  # Same ID across all nodes for the same secret
+                            'chunk': 'base64EncodedShare1ForChunk1'
+                        },
+                        {
+                            '_id': '987fcdeb-51a2-43d7-9012-345678901234',  # Same ID across all nodes for the same secret  
+                            'chunk': 'base64EncodedShare1ForChunk2'
+                        }
+                    ],
+                    # Shares from node 2 
+                    [
+                        {
+                            '_id': '123e4567-e89b-12d3-a456-426614174000',
+                            'chunk': 'base64EncodedShare2ForChunk1'
+                        },
+                        {
+                            '_id': '987fcdeb-51a2-43d7-9012-345678901234',
+                            'chunk': 'base64EncodedShare2ForChunk2'
+                        }
+                    ],
+                    # Shares from node 3
+                    [
+                        {
+                            '_id': '123e4567-e89b-12d3-a456-426614174000',
+                            'chunk': 'base64EncodedShare3ForChunk1'
+                        },
+                        {
+                            '_id': '987fcdeb-51a2-43d7-9012-345678901234',
+                            'chunk': 'base64EncodedShare3ForChunk2'
+                        }
+                    ]
+                ]
+
+        Example:
+            # Get top k document IDs from similarity search
+            top_k = 2
+            top_k_ids = [item['_id'] for item in sorted_ids[:top_k]]
+            
+            # Retrieve the chunks for those IDs
+            chunk_shares = nilDB.chunk_query_execute(top_k_ids)
+
+        Raises:
+            ValueError: If query execution fails on any nilDB node
+        """
         chunk_shares = []
         for node in self.nodes:
             url = node.url + "/data/read"
@@ -256,18 +456,6 @@ class NilDB:
             if response.status_code != 200:
                 raise ValueError(f"Error in POST request: {response.status_code}, {response.text}")
             try:
-                # e.g. response = {
-                #   'data': [
-                #       {
-                #           '_id': 'f1fc5d71-24a8-4b38-9c5b-0cba1e615acb', 
-                #           'difference': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-                #       }, 
-                #       {   
-                #           '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964', 
-                #           'difference': [9, 19, 29, 39, 49, 59, 69, 79, 89, 99]
-                #       }
-                #    ]
-                # }
                 chunk_shares_party_i = response.json().get("data")
                 if chunk_shares_party_i is None:
                     raise ValueError(f"Error in Response: {response.text}")
@@ -280,17 +468,59 @@ class NilDB:
 
 
 
-    # Function to store embedding and chunk in RAG database
     def upload_data(self, lst_embedding_shares, lst_chunk_shares):
-        # lst_embeddings_shares [20][384][2]
-        # lst_chunks_shares [20][2][268]
+        """
+        Upload embeddings and chunks to all nilDB nodes.
+
+        Args:
+            lst_embedding_shares (list): List of embedding shares for each document, e.g. for 3 nodes:
+                [
+                    [  # First document's embedding vector (384 dimensions)
+                        [1234567890, 987654321, 2072745085],  # First dimension split into 3 shares (sum mod 2^32)
+                        [3141592653, 2718281828, 3435092815],  # Second dimension split into 3 shares (sum mod 2^32)
+                        # ... 382 more dimensions, each split into 3 shares
+                    ],
+                    # More documents...
+                ]
+            lst_chunk_shares (list): List of chunk shares for each document, e.g. for 3 nodes:
+                [
+                    [  # First document's chunk shares
+                        b"encrypted chunk for node 1",
+                        b"encrypted chunk for node 2", 
+                        b"encrypted chunk for node 3"
+                    ],
+                    # More documents...
+                ]
+
+        Example:
+            >>> # Set up encryption keys for 3 nodes
+            >>> additive_key = nilql.secret_key({'nodes': [{}] * 3}, {'sum': True})
+            >>> xor_key = nilql.secret_key({'nodes': [{}] * 3}, {'store': True})
+            >>> 
+            >>> # Generate embeddings and chunks
+            >>> chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
+            >>> embeddings = generate_embeddings_huggingface(chunks)  # Each embedding is 384-dimensional
+            >>> 
+            >>> # Create shares
+            >>> chunks_shares = [nilql.encrypt(xor_key, chunk) for chunk in chunks]
+            >>> embeddings_shares = [encrypt_float_list(additive_key, emb) for emb in embeddings]
+            >>> 
+            >>> # Upload to nilDB nodes
+            >>> nilDB.upload_data(embeddings_shares, chunks_shares)
+
+        Raises:
+            AssertionError: If number of embeddings and chunks don't match
+            ValueError: If upload fails on any nilDB node
+        """
+        # lst_embeddings_shares [20][384][3]
+        # lst_chunks_shares [20][3][268]
 
         # Check sizes: same number of embeddings and chunks
         assert len(lst_embedding_shares) == len(lst_chunk_shares), f"Mismatch: {len(lst_embedding_shares)} embeddings vs {len(lst_chunk_shares)} chunks."
         
         for (embedding_shares, chunk_shares) in zip(lst_embedding_shares, lst_chunk_shares):
-            # embeddings_shares [384][2]
-            # chunks_shares [2][268]
+            # embeddings_shares [384][3]
+            # chunks_shares [3][268]
             
             # 'data_id' has to be the same for every node to allow secret reconstructions
             data_id = str(uuid4()) 
@@ -332,81 +562,6 @@ class NilDB:
                     )
 
 
-if __name__ == "__main__":
 
-    json_file = "nildb_config.json"
-
-    # Load NilDB from JSON file if it exists
-    if os.path.exists(json_file):
-        print("Loading NilDB configuration from file...")
-        nilDB = NilDB.from_json(json_file)
-    else:
-        # Initialize NilDB if no configuration file exists
-        print("No configuration file found. Initializing NilDB...")
-        nilDB_nodes = [
-            # node-a50d
-            Node(
-                url="https://nildb-node-a50d.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
-                owner="did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
-                bearer_token="Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NksifQ.eyJpYXQiOjE3MzQ0NDI2NjUsImV4cCI6MTczNTA0MjY2NSwiYXVkIjoiZGlkOm5pbDp0ZXN0bmV0Om5pbGxpb24xNWxjanhnYWZndnM0MHJ5cHZxdTczZ2Z2eDZwa3g3dWdkamE1MGQiLCJpc3MiOiJkaWQ6bmlsOnRlc3RuZXQ6bmlsbGlvbjFxaHF1eXQyMGVxMHZ1dGp6dzZ2NnprNzUyeTZteTRrcnhjbW5uMiJ9.6zscB_D2KH3qSx00yHMeRVU9xpj-J0wKEFRoJg5fmZJyDgtN55Fypd69YxLWaVtze6l848X_r29QOIPM__QEDw",
-            ),
-            # node-dvml
-            Node(
-                url="https://nildb-node-dvml.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
-                owner="did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
-                bearer_token="Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NksifQ.eyJpYXQiOjE3MzQ0NDI2MzMsImV4cCI6MTczNTA0MjYzMywiYXVkIjoiZGlkOm5pbDp0ZXN0bmV0Om5pbGxpb24xZGZoNDRjczRoMnplazV2aHp4a2Z2ZDl3MjhzNXE1Y2RlcGR2bWwiLCJpc3MiOiJkaWQ6bmlsOnRlc3RuZXQ6bmlsbGlvbjFxaHF1eXQyMGVxMHZ1dGp6dzZ2NnprNzUyeTZteTRrcnhjbW5uMiJ9.drcbqEBwWvSCOJvGfLX1FlvIwiXt-vXT6NxTsgRjkbsGbPLKg94KVYr0mcggfLXaMwarkAVdTxfanOX3otu4Bw",
-            ),
-            # node-guue
-            Node(
-                url="https://nildb-node-guue.sandbox.app-cluster.sandbox.nilogy.xyz/api/v1/",
-                owner="did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
-                bearer_token="Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NksifQ.eyJpYXQiOjE3MzQ0NDI0MjYsImV4cCI6MTczNTA0MjQyNiwiYXVkIjoiZGlkOm5pbDp0ZXN0bmV0Om5pbGxpb24xOXQwZ2VmbTdwcjZ4amtxMnNqNDBmMHJzN3d6bmxkZ2ZnNGd1dWUiLCJpc3MiOiJkaWQ6bmlsOnRlc3RuZXQ6bmlsbGlvbjFxaHF1eXQyMGVxMHZ1dGp6dzZ2NnprNzUyeTZteTRrcnhjbW5uMiJ9._67NLp51SPK1nk7y-nMhzsD67Rp3HwlRxvC9w82cHgQBzL2XpkynptTIEy7kLJifHeUhdbtstbiGfL6MDtIlQQ",
-            ),
-            # Add more nodes here if needed.
-        ]
-        nilDB = NilDB(nilDB_nodes)
-
-        # Initialize schema and queries
-        nilDB.init_schema()
-        nilDB.init_diff_query()
-
-        # Save NilDB to JSON file
-        nilDB.to_json(json_file)
-        print("NilDB configuration saved to file.")
-
-    print("NilDB instance:", nilDB)
-    print()
-
-    # Set up modes of operation (i.e., keys)
-    additive_key = nilql.secret_key({'nodes': [{}] * len(nilDB.nodes)}, {'sum': True})
-    xor_key = nilql.secret_key({'nodes': [{}] * len(nilDB.nodes)}, {'store': True})
-
-    # Create chunks nd embeddings
-    file_path = 'data/cities.txt'
-    paragraphs = load_file(file_path)
-    chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
-    print('Generating embeddings...')
-    embeddings = generate_embeddings_huggingface(chunks)
-    print('Embeddings generated!')
-    # print("Chunks: \n", chunks)
-    # print("Chunks: \n", chunks[0])
-
-    # print(f"Embeddings[{len(embeddings)}][{len(embeddings[0])}]")
-    # print(f"chunks[{len(chunks)}][{len(chunks[0])}]")
-
-    chunks_shares = []
-    for chunk in chunks:
-        chunks_shares.append(nilql.encrypt(xor_key, chunk))
-
-    embeddings_shares = []
-    for embedding in embeddings:
-        embeddings_shares.append(encrypt_float_list(additive_key, embedding))
-
-    # print(f"embeddings_shares [{len(embeddings_shares)}][{len(embeddings_shares[0])}][{len(embeddings_shares[0][0])}]")
-    # print(f"chunks_shares [{len(chunks_shares)}][{len(chunks_shares[0])}][{len(chunks_shares[0][0])}]")
-
-    # Upload data to nilDB
-    print('Uploading data:')
-    nilDB.upload_data(embeddings_shares, chunks_shares)
     
 
