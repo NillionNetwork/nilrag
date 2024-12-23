@@ -80,13 +80,12 @@ uv venv
 source .venv/bin/activate
 ```
 
-Local installation:
+Then either follow the local installation:
 ```bash
 # Install package in development mode
 uv pip install -e .
 ```
-
-Using pip (not available yet):
+or use pip *(not available yet)*:
 ```bash
 pip install nilrag
 ```
@@ -136,12 +135,12 @@ Start the TEE server with a specific config file:
 
 ```bash
 # Using default config (tee_nildb_config.json)
-uv run launch_tee.py
+uv run examples/launch_tee.py
 
 # Using a custom config file
-uv run launch_tee.py -c custom_nildb_config.json
+uv run examples/launch_tee.py -c custom_nildb_config.json
 # or
-uv run launch_tee.py --config path/to/config.json
+uv run examples/launch_tee.py --config path/to/config.json
 ```
 
 The server will start on http://0.0.0.0:8000 with:
@@ -181,19 +180,19 @@ nilrag/
 │   ├── __init__.py
 │   └── rag.py                   # Test suite for RAG functionality
 ├── examples/
+|   ├── data/
+|   │   └── cities.txt           # Sample data for testing
 │   ├── client_query.py          # Client query example
 │   ├── data_owner_init.py       # Data owner initialization example
 │   ├── data_owner_upload.py     # Data owner upload example
+|   ├── launch_tee.py            # TEE server launcher
 │   ├── nildb_config.json        # Example config with initialized nodes
 │   ├── tee_nildb_config.json
 │   └── uninitialized_nildb_config.json
-├── data/
-│   └── cities.txt               # Sample data for testing
 ├── scripts/                     # Utility scripts
 ├── pyproject.toml               # Project metadata and dependencies
 ├── requirements.txt             # Pinned dependencies
 ├── uv.lock                      # UV lockfile
-├── launch_tee.py                # TEE server launcher
 └── README.md                    # Documentation
 ```
 
@@ -203,6 +202,4 @@ nilrag/
 - `src/nilrag/util.py`: RAG utilities (embeddings, chunking, rational encoding)
 - `test/rag.py`: Test suite for RAG functionality
 - `examples`: Script examples for data owner, client, and TEE server
-- `data`: Sample data for testing
 - `scripts`: Utility scripts examples for maintenance and initialization
-

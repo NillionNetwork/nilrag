@@ -8,7 +8,7 @@ class Node:
     Represents a node in the NilDB network.
 
     A Node contains connection information and identifiers for a specific NilDB instance,
-    including the URL endpoint, owner identifier, authentication token, and IDs for 
+    including the URL endpoint, owner identifier, authentication token, and IDs for
     associated schema and queries.
 
     Attributes:
@@ -137,17 +137,17 @@ class NilDB:
     def init_schema(self):
         """
         Initialize the nilDB schema across all nodes.
-        
+
         Creates a schema for storing embeddings and chunks with a common schema ID
         across all nilDB nodes. The schema defines the structure for storing document
         embeddings and their corresponding text chunks.
-        
+
         Raises:
             ValueError: If schema creation fails on any nilDB node
         """
-        schema_id = str(uuid4()) # the schema_id is assumed to be the same accross different nildb instances
-        node.schema_id = schema_id
+        schema_id = str(uuid4()) # the schema_id is assumed to be the same across different nildb instances
         for node in self.nodes:
+            node.schema_id = schema_id
             url = node.url + "/schemas"
 
             headers = {
@@ -197,16 +197,16 @@ class NilDB:
     def init_diff_query(self):
         """
         Initialize the difference query across all nilDB nodes.
-        
+
         Creates a query that calculates the difference between stored embeddings
         and a query embedding. This query is used for similarity search operations.
-        
+
         Raises:
             ValueError: If query creation fails on any nilDB node
         """
         diff_query_id = str(uuid4()) # the diff_query_id is assumed to be the same accross different nildb instances
-        node.diff_query_id = diff_query_id
         for node in self.nodes:
+            node.diff_query_id = diff_query_id
             url = node.url + "/queries"
 
             headers = {
@@ -283,10 +283,10 @@ class NilDB:
                         b'share_for_node_1',  # Share for node 1
                         b'share_for_node_2'   # Share for node 2
                     ],
-                    # Second element of embedding vector, shared across nodes  
+                    # Second element of embedding vector, shared across nodes
                     [
                         b'share_for_node_0',
-                        b'share_for_node_1', 
+                        b'share_for_node_1',
                         b'share_for_node_2'
                     ],
                     # And so on for each element in the embedding vector...
@@ -302,7 +302,7 @@ class NilDB:
                             'difference': [0, 1, 2, 3, 4]
                         },
                         {
-                            '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964', 
+                            '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964',
                             'difference': [5, 6, 7, 8, 9]
                         }
                     ],
@@ -321,14 +321,14 @@ class NilDB:
         Example usage:
             # Initialize secret key for 3 parties
             additive_key = nilql.secret_key({'nodes': [{}] * 3}, {'sum': True})
-            
+
             # Generate query embedding from text
             query_text = "what is the capital of France?"
             query_embedding = generate_embeddings_huggingface([query_text])[0]
-            
+
             # Encrypt and share the query embedding
             nilql_query_embedding = encrypt_float_list(additive_key, query_embedding)
-            
+
             # Execute query and get differences
             difference_shares = nildb.diff_query_execute(nilql_query_embedding)
 
@@ -374,7 +374,7 @@ class NilDB:
                 return response.text
 
         return difference_shares
-    
+
 
     def chunk_query_execute(self, chunk_ids):
         """
@@ -393,11 +393,11 @@ class NilDB:
                             'chunk': 'base64EncodedShare1ForChunk1'
                         },
                         {
-                            '_id': '987fcdeb-51a2-43d7-9012-345678901234',  # Same ID across all nodes for the same secret  
+                            '_id': '987fcdeb-51a2-43d7-9012-345678901234',  # Same ID across all nodes for the same secret
                             'chunk': 'base64EncodedShare1ForChunk2'
                         }
                     ],
-                    # Shares from node 2 
+                    # Shares from node 2
                     [
                         {
                             '_id': '123e4567-e89b-12d3-a456-426614174000',
@@ -425,7 +425,7 @@ class NilDB:
             # Get top k document IDs from similarity search
             top_k = 2
             top_k_ids = [item['_id'] for item in sorted_ids[:top_k]]
-            
+
             # Retrieve the chunks for those IDs
             chunk_shares = nilDB.chunk_query_execute(top_k_ids)
 
@@ -486,7 +486,7 @@ class NilDB:
                 [
                     [  # First document's chunk shares
                         b"encrypted chunk for node 1",
-                        b"encrypted chunk for node 2", 
+                        b"encrypted chunk for node 2",
                         b"encrypted chunk for node 3"
                     ],
                     # More documents...
@@ -496,15 +496,15 @@ class NilDB:
             >>> # Set up encryption keys for 3 nodes
             >>> additive_key = nilql.secret_key({'nodes': [{}] * 3}, {'sum': True})
             >>> xor_key = nilql.secret_key({'nodes': [{}] * 3}, {'store': True})
-            >>> 
+            >>>
             >>> # Generate embeddings and chunks
             >>> chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
             >>> embeddings = generate_embeddings_huggingface(chunks)  # Each embedding is 384-dimensional
-            >>> 
+            >>>
             >>> # Create shares
             >>> chunks_shares = [nilql.encrypt(xor_key, chunk) for chunk in chunks]
             >>> embeddings_shares = [encrypt_float_list(additive_key, emb) for emb in embeddings]
-            >>> 
+            >>>
             >>> # Upload to nilDB nodes
             >>> nilDB.upload_data(embeddings_shares, chunks_shares)
 
@@ -517,13 +517,13 @@ class NilDB:
 
         # Check sizes: same number of embeddings and chunks
         assert len(lst_embedding_shares) == len(lst_chunk_shares), f"Mismatch: {len(lst_embedding_shares)} embeddings vs {len(lst_chunk_shares)} chunks."
-        
+
         for (embedding_shares, chunk_shares) in zip(lst_embedding_shares, lst_chunk_shares):
             # embeddings_shares [384][3]
             # chunks_shares [3][268]
-            
+
             # 'data_id' has to be the same for every node to allow secret reconstructions
-            data_id = str(uuid4()) 
+            data_id = str(uuid4())
             for i, node in enumerate(self.nodes):
                 url = node.url + "/data/create"
                 # Authorization header with the provided token
@@ -563,5 +563,5 @@ class NilDB:
 
 
 
-    
+
 

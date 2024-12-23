@@ -4,7 +4,7 @@ from nilrag.util import create_chunks, encrypt_float_list, generate_embeddings_h
 from nilrag.nildb import NilDB
 
 
-json_file = "nildb_config.json"
+json_file = "examples/nildb_config.json"
 
 # Load NilDB from JSON file if it exists
 if os.path.exists(json_file):
@@ -23,7 +23,7 @@ additive_key = nilql.secret_key({'nodes': [{}] * num_nodes}, {'sum': True})
 xor_key = nilql.secret_key({'nodes': [{}] * num_nodes}, {'store': True})
 
 # Load and process input file
-file_path = 'data/cities.txt'
+file_path = 'examples/data/cities.txt'
 paragraphs = load_file(file_path)
 chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
 
