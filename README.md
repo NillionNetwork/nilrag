@@ -1,6 +1,12 @@
 # nilRAG [![GitHub license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/NillionNetwork/nilrag/blob/main/LICENSE)
-Retrieval Augmented Generation (RAG) using Nillion's nilDB and nilQL.
-RAG is a technique that grants large language models information retrieval capabilities and context that they might be missing.
+Retrieval Augmented Generation (RAG) using Nillion's
+[nilDB](https://github.com/NillionNetwork/nildb) and
+[nilQL](https://github.com/NillionNetwork/nilql-py). RAG is a technique that
+grants large language models information retrieval capabilities and context that
+they might be missing.
+
+nilRAG combines multiparty computation (MPC) and trusted execution environment
+(TEE) technologies.
 
 # Use case
 
@@ -67,6 +73,7 @@ top_k_indices = indices[:k]
 # How to use
 
 ## Installation
+First install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run:
 ```bash
 # Create and activate virtual environment with uv
 uv venv
@@ -98,7 +105,7 @@ This initialization introduces:
     MPC between the stored data owner embeddings and the client's embedding.
 
 In [examples/data_owner_init.py](examples/data_owner_init.py), we provide an example of how to
-define the nilDB nodes. Modify [examples/uninitialized_nildb_config.py](examples/uninitialized_nildb_config.py) by adding more nodes and defining the correct URLs, ORGs, and Tokens. 
+define the nilDB nodes. Modify [examples/uninitialized_nildb_config.py](examples/uninitialized_nildb_config.py) by adding more nodes and defining the correct URLs, ORGs, and Tokens.
 
 The nilDB instance is initialized as follows:
 ```python
@@ -166,7 +173,7 @@ nilrag/
 ├── src/
 │   └── nilrag/
 │       ├── __init__.py          # Package exports
-│       ├── __main__.py          
+│       ├── __main__.py
 │       ├── app.py               # FastAPI application and TEE server
 │       ├── nildb.py             # NilDB and Node classes
 │       └── util.py              # Utility functions for RAG
