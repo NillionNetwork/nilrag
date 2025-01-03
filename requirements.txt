@@ -1,6 +1,0 @@
-sentence_transformers
-numpy
-fastapi[standard]
-uvicorn
-pydantic
-nilql==0.0.0a2

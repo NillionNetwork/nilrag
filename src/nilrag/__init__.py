@@ -13,7 +13,7 @@ from .util import (  # noqa: F401
     decrypt_string_list,
 )
 
-from .nildb import (  # noqa: F401
+from .nildb_requests import (  # noqa: F401
     Node,
     NilDB,
 )

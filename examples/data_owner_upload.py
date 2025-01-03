@@ -1,7 +1,8 @@
 import os
 import nilql
+import json
 from nilrag.util import create_chunks, encrypt_float_list, generate_embeddings_huggingface, load_file
-from nilrag.nildb import NilDB
+from nilrag.nildb_requests import NilDB, Node
 
 
 json_file = "examples/nildb_config.json"
@@ -9,10 +10,20 @@ json_file = "examples/nildb_config.json"
 # Load NilDB from JSON file if it exists
 if os.path.exists(json_file):
     print("Loading NilDB configuration from file...")
-    nilDB = NilDB.from_json(json_file)
+    with open(json_file, "r") as f:
+        data = json.load(f)
+        nodes = []
+        for node_data in data["nodes"]:
+            nodes.append(
+                Node(node_data["url"], node_data["node_id"], node_data["org"], None, node_data.get("schema_id"))
+            )
+        nilDB = NilDB(nodes)
 else:
     print("Error: NilDB configuration file not found.")
     exit(1)
+
+secret_key = "b1f6a40ae05a69d8fefd43af420b5ecb1a75e736eb2cce3d34eebfe9b45fb688"
+nilDB.generate_jwt(secret_key)
 
 print("NilDB instance:", nilDB)
 print()

@@ -1,38 +1,42 @@
 import requests
 import json
-from uuid import uuid4
 import base64
+import jwt
+import time
+from ecdsa import SigningKey, SECP256k1
+from uuid import uuid4
 
 class Node:
     """
     Represents a node in the NilDB network.
 
     A Node contains connection information and identifiers for a specific NilDB instance,
-    including the URL endpoint, owner identifier, authentication token, and IDs for
+    including the URL endpoint, org identifier, authentication token, and IDs for
     associated schema and queries.
 
     Attributes:
         url (str): The base URL endpoint for the node, with trailing slash removed
-        owner (str): The owner identifier for this node
+        org (str): The org identifier for this node
         bearer_token (str): Authentication token for API requests
         schema_id (str, optional): ID of the schema associated with this node
         diff_query_id (str, optional): ID of the differences query for this node
     """
 
-    def __init__(self, url, owner, bearer_token, schema_id=None, diff_query_id=None):
+    def __init__(self, url, node_id, org, bearer_token=None, schema_id=None, diff_query_id=None):
         """
         Initialize a new Node instance.
 
         Args:
             url (str): Base URL endpoint for the node
-            owner (str): Owner identifier
+            org (str): org identifier
             bearer_token (str): Authentication token
             schema_id (str, optional): Associated schema ID
             diff_query_id (str, optional): Associated differences query ID
         """
         self.url = url[:-1] if url.endswith('/') else url
-        self.owner = str(owner)
-        self.bearer_token = str(bearer_token)
+        self.node_id = str(node_id)
+        self.org = str(org)
+        self.bearer_token = bearer_token
         self.schema_id = schema_id
         self.diff_query_id = diff_query_id
 
@@ -45,41 +49,11 @@ class Node:
             str: Multi-line string containing all Node attributes
         """
         return f"URL: {self.url}\
-            \nowner: {self.owner}\
+            \nnode_id: {self.node_id}\
+            \norg: {self.org}\
             \nBearer Token: {self.bearer_token}\
             \nSchema ID: {self.schema_id}\
             \nDifferences Query ID: {self.diff_query_id}"
-
-    def to_dict(self):
-        """
-        Convert Node instance to a dictionary for serialization.
-
-        Returns:
-            dict: Dictionary containing all Node attributes
-        """
-        return {
-            "url": self.url,
-            "owner": self.owner,
-            "bearer_token": self.bearer_token,
-            "schema_id": self.schema_id,
-            "diff_query_id": self.diff_query_id,
-        }
-
-    @classmethod
-    def from_dict(cls, data):
-        """
-        Create a Node instance from a dictionary.
-
-        Args:
-            data (dict): Dictionary containing Node attributes
-
-        Returns:
-            Node: New Node instance initialized with provided data
-        """
-        node = cls(data["url"], data["owner"], data["bearer_token"])
-        node.schema_id = data.get("schema_id")
-        node.diff_query_id = data.get("diff_query_id")
-        return node
 
 class NilDB:
     """
@@ -105,35 +79,6 @@ class NilDB:
         """Return string representation of NilDB showing all nodes."""
         return "\n".join(f"\nNode({i}):\n{repr(node)}" for i, node in enumerate(self.nodes))
 
-    def to_json(self, file_path):
-        """
-        Serialize NilDB instance to JSON and save to a file.
-
-        Args:
-            file_path (str): Path to save the JSON file
-        """
-        data = {
-            "nodes": [node.to_dict() for node in self.nodes]
-        }
-        with open(file_path, "w") as f:
-            json.dump(data, f, indent=4)
-
-    @classmethod
-    def from_json(cls, file_path):
-        """
-        Create a NilDB instance from a JSON file.
-
-        Args:
-            file_path (str): Path to the JSON configuration file
-
-        Returns:
-            NilDB: New instance initialized with data from the JSON file
-        """
-        with open(file_path, "r") as f:
-            data = json.load(f)
-        nodes = [Node.from_dict(node_data) for node_data in data["nodes"]]
-        return cls(nodes)
-
     def init_schema(self):
         """
         Initialize the nilDB schema across all nodes.
@@ -156,11 +101,11 @@ class NilDB:
             }
             payload = {
                 "_id": schema_id,
-                "owner": node.owner,
+                "org": node.org,
                 "name": "nilrag data",
                 "keys": ["_id"],
                 "schema": {
-                    "$schema": "http://json-schema.owner/draft-07/schema#",
+                    "$schema": "http://json-schema.org/draft-07/schema#",
                     "title": "NILLION USERS",
                     "type": "array",
                     "items": {
@@ -204,7 +149,7 @@ class NilDB:
         Raises:
             ValueError: If query creation fails on any nilDB node
         """
-        diff_query_id = str(uuid4()) # the diff_query_id is assumed to be the same accross different nildb instances
+        diff_query_id = str(uuid4()) # the diff_query_id is assumed to be the same across different nildb instances
         for node in self.nodes:
             node.diff_query_id = diff_query_id
             url = node.url + "/queries"
@@ -215,7 +160,7 @@ class NilDB:
             }
             payload = {
                 "_id": node.diff_query_id,
-                "owner": node.owner,
+                "org": node.org,
                 "name": "Returns the difference between the nilDB embeddings and the query embedding",
                 "schema": node.schema_id,
                 "variables": {
@@ -267,6 +212,39 @@ class NilDB:
             if response.status_code != 200:
                 raise ValueError(f"Error in POST request: {response.status_code}, {response.text}")
             print("Response JSON:", response.json())
+
+
+    def generate_jwt(self, secret_key, ttl=3600):
+        """
+        Create JWTs signed with ES256K for multiple node_ids.
+
+        Args:
+            secret_key: Secret key in hex format
+            org_did: Issuer's DID
+            node_ids: List of node IDs (audience)
+            ttl: Time-to-live for the JWT in seconds
+
+        Returns:
+            List of generated JWTs
+        """
+        # Convert the secret key from hex to bytes
+        private_key = bytes.fromhex(secret_key)
+        signer = SigningKey.from_string(private_key, curve=SECP256k1)
+        for node in self.nodes:
+            # Create payload for each node_id
+            payload = {
+                "iss": node.org,
+                "aud": node.node_id,
+                "exp": int(time.time()) + ttl
+            }
+
+            # Create and sign the JWT
+            node.bearer_token = jwt.encode(
+                payload,
+                signer.to_pem(),
+                algorithm="ES256K"
+            )
+            print(f"Generated JWT for {node.node_id}: {node.bearer_token}")
 
 
     def diff_query_execute(self, nilql_query_embedding):
@@ -560,8 +538,3 @@ class NilDB:
                             "response_json": response.json()
                         }
                     )
-
-
-
-
-

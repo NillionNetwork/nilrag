@@ -193,3 +193,22 @@ def decrypt_string_list(sk, lst):
         list: List of decrypted strings
     """
     return [nilql.decrypt(sk, l) for l in lst]
+
+
+# if __name__ == "__main__":
+#     secret_key = "b1f6a40ae05a69d8fefd43af420b5ecb1a75e736eb2cce3d34eebfe9b45fb688"
+#     org_did = "did:nil:testnet:nillion12d545xtad899pqp6xzvvnwqdkwlz0klysxljzn"
+#     node_ids = [
+#         "did:nil:testnet:nillion15lcjxgafgvs40rypvqu73gfvx6pkx7ugdja50d",
+#         "did:nil:testnet:nillion17bkjqvcqyfjdnf04hfztrh9rfkj9qfjlzjqvn2",
+#         "did:nil:testnet:nillion18zmcgyfjqz94lq7tfd8w4qvxdw99jfdmznd7hv"
+#     ]
+#     generate_jwt(secret_key, org_did, node_ids)
+
+
+# nilrag.generate_jwt(secret_key, org, ttl, node_config)
+#     Generates and outputs new jwt
+#     Stores it in nilDB nodes
+# nilrag.query(jwt, query_string, schema_id, query_id, tee_config, node_config)
+#     Generates json request for chat completion endpoint
+#     Calls chat completion endpoint (link with nilAI/TEE)

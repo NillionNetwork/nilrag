@@ -4,7 +4,7 @@ Test suite containing functional unit tests of exported functions.
 import unittest
 import numpy as np
 import nilql
-from src.nilrag.util import load_file, create_chunks, generate_embeddings_huggingface, find_closest_chunks, encrypt_string_list, encrypt_float_list, decrypt_float_list
+from src.nilrag.util import load_file, create_chunks, generate_embeddings_huggingface, find_closest_chunks, encrypt_float_list, decrypt_float_list
 
 
 class TestRAGMethods(unittest.TestCase):
