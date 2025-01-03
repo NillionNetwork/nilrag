@@ -96,7 +96,7 @@ class NilDB:
             url = node.url + "/schemas"
 
             headers = {
-                "Authorization": node.bearer_token,
+                "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json"
             }
             payload = {
@@ -155,7 +155,7 @@ class NilDB:
             url = node.url + "/queries"
 
             headers = {
-                "Authorization": node.bearer_token,
+                "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json"
             }
             payload = {
@@ -223,9 +223,6 @@ class NilDB:
             org_did: Issuer's DID
             node_ids: List of node IDs (audience)
             ttl: Time-to-live for the JWT in seconds
-
-        Returns:
-            List of generated JWTs
         """
         # Convert the secret key from hex to bytes
         private_key = bytes.fromhex(secret_key)
@@ -325,7 +322,7 @@ class NilDB:
             url = node.url + "/queries/execute"
             # Authorization header with the provided token
             headers = {
-                "Authorization": node.bearer_token,
+                "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json"
             }
             diff_query_id = node.diff_query_id
@@ -415,7 +412,7 @@ class NilDB:
             url = node.url + "/data/read"
             # Authorization header with the provided token
             headers = {
-                "Authorization": node.bearer_token,
+                "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json"
             }
 
@@ -506,7 +503,7 @@ class NilDB:
                 url = node.url + "/data/create"
                 # Authorization header with the provided token
                 headers = {
-                    "Authorization": node.bearer_token,
+                    "Authorization": "Bearer " + str(node.bearer_token),
                     "Content-Type": "application/json"
                 }
                 # Join the shares of one embedding in one vector

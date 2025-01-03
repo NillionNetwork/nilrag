@@ -22,7 +22,7 @@ else:
     print("Error: NilDB configuration file not found.")
     exit(1)
 
-secret_key = "b1f6a40ae05a69d8fefd43af420b5ecb1a75e736eb2cce3d34eebfe9b45fb688"
+secret_key = "add_here_your_secret_key"
 nilDB.generate_jwt(secret_key)
 
 print("NilDB instance:", nilDB)
