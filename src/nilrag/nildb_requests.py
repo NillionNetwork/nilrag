@@ -516,7 +516,7 @@ class NilDB:
                 }
                 # Join the shares of one embedding in one vector
                 node_i_embedding_shares = [e[i] for e in embedding_shares]
-                encoded_node_i_chunk_share = chunk_shares[i].decode("utf-8")
+                encoded_node_i_chunk_share = chunk_shares[i]
                 # Schema payload
                 payload = {
                     "schema": node.schema_id,
