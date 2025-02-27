@@ -1,23 +1,23 @@
 {
     "nodes": [
         {
-            "url": "https://nildb-a50d.nillion.network/api/v1",
-            "node_id": "did:nil:testnet:nillion15lcjxgafgvs40rypvqu73gfvx6pkx7ugdja50d",
-            "org": "did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
+            "url": "https://nildb-nx8v.nillion.network/api/v1",
+            "node_id": "did:nil:testnet:nillion1qfrl8nje3nvwh6cryj63mz2y6gsdptvn07nx8v",
+            "org": "did:nil:testnet:nillion1c82ng7dmxur6yh2x9yed5pp7y8cr99lynnr449",
             "schema_id": "6aa651af-7762-4aaa-9089-82f8eab16201",
             "diff_query_id": "dfcee886-231d-4a9d-9bdd-857f74a72964"
         },
         {
-            "url": "https://nildb-dvml.nillion.network/api/v1",
-            "node_id": "did:nil:testnet:nillion1dfh44cs4h2zek5vhzxkfvd9w28s5q5cdepdvml",
-            "org": "did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
+            "url": "https://nildb-p3mx.nillion.network/api/v1",
+            "node_id": "did:nil:testnet:nillion1uak7fgsp69kzfhdd6lfqv69fnzh3lprg2mp3mx",
+            "org": "did:nil:testnet:nillion1c82ng7dmxur6yh2x9yed5pp7y8cr99lynnr449",
             "schema_id": "6aa651af-7762-4aaa-9089-82f8eab16201",
             "diff_query_id": "dfcee886-231d-4a9d-9bdd-857f74a72964"
         },
         {
-            "url": "https://nildb-guue.nillion.network/api/v1",
-            "node_id": "did:nil:testnet:nillion19t0gefm7pr6xjkq2sj40f0rs7wznldgfg4guue",
-            "org": "did:nil:testnet:nillion1qhquyt20eq0vutjzw6v6zk752y6my4krxcmnn2",
+            "url": "https://nildb-rugk.nillion.network/api/v1",
+            "node_id": "did:nil:testnet:nillion1kfremrp2mryxrynx66etjl8s7wazxc3rssrugk",
+            "org": "did:nil:testnet:nillion1c82ng7dmxur6yh2x9yed5pp7y8cr99lynnr449",
             "schema_id": "6aa651af-7762-4aaa-9089-82f8eab16201",
             "diff_query_id": "dfcee886-231d-4a9d-9bdd-857f74a72964"
         }
