@@ -39,7 +39,7 @@ print('Query nilAI with nilRAG...')
 response = nilDB.nilai_chat_completion(
     nilai_url="NILAI_URL", # Update with your nilAI node url
     token="NILAI_TOKEN", # Update with your nilAI token
-    model="meta-llama/Llama-3.1-8B-Instruct",
+    model="meta-llama/Llama-3.2-3B-Instruct",
     messages=[
         {"role": "user", "content": "Tell me about Asia."}
     ],
