@@ -550,7 +550,7 @@ class NilDB:
         nilai_url: str,
         token: str,
         messages: list[dict],
-        model: str = "Llama-3.2-1B-Instruct",
+        model: str = "meta-llama/Llama-3.2-3B-Instruct",
         temperature: float = 0.7,
         max_tokens: int = 2048,
         stream: bool = False,
@@ -562,7 +562,7 @@ class NilDB:
             nilai_url (str): Base URL for the nilai API
             token (str): Bearer token for authentication
             messages (list[dict]): List of message dictionaries (role and content)
-            model (str): AI model to use for completion (default: "Llama-3.2-1B-Instruct")
+            model (str): AI model to use for completion (default: "meta-llama/Llama-3.2-3B-Instruct")
             temperature (float): Sampling temperature (default: 0.7)
             max_tokens (int): Maximum tokens to generate (default: 2048)
             stream (bool): Whether to stream the response (default: False)
