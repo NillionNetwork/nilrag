@@ -121,7 +121,6 @@ class NilDB:
             }
             payload = {
                 "_id": schema_id,
-                "org": node.org,
                 "name": "nilrag data",
                 "keys": ["_id"],
                 "schema": {
@@ -179,7 +178,6 @@ class NilDB:
             }
             payload = {
                 "_id": node.diff_query_id,
-                "org": node.org,
                 "name": "Returns the difference between the nilDB embeddings and the query embedding",
                 "schema": node.schema_id,
                 "variables": {
