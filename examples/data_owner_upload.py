@@ -16,8 +16,7 @@ from nilrag.nildb_requests import NilDB, Node
 
 
 JSON_FILE = "examples/nildb_config.json"
-# Update with your secret key
-SECRET_KEY = "XXXXXXXXXXXXXXXXXXXXXXXX"
+SECRET_KEY = "YOUR_SECRET_KEY" # Update with your SecretVault (nilDB) Secret Key
 FILE_PATH = 'examples/data/cities.txt'
 
 # Load NilDB from JSON file if it exists
@@ -41,15 +40,15 @@ else:
     print("Error: NilDB configuration file not found.")
     sys.exit(1)
 
-nilDB.generate_jwt(SECRET_KEY, ttl=100000000)
+nilDB.generate_jwt(SECRET_KEY, ttl=3600)
 
 print("NilDB instance:", nilDB)
 print()
 
 # Initialize secret keys for different modes of operation
 num_nodes = len(nilDB.nodes)
-additive_key = nilql.secret_key({'nodes': [{}] * num_nodes}, {'sum': True})
-xor_key = nilql.secret_key({'nodes': [{}] * num_nodes}, {'store': True})
+additive_key = nilql.ClusterKey.generate({'nodes': [{}] * num_nodes}, {'sum': True})
+xor_key = nilql.ClusterKey.generate({'nodes': [{}] * num_nodes}, {'store': True})
 
 # Load and process input file
 paragraphs = load_file(FILE_PATH)
