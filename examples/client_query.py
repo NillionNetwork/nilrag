@@ -41,7 +41,7 @@ response = nilDB.nilai_chat_completion(
     token="NILAI_TOKEN", # Update with your nilAI token
     model="meta-llama/Llama-3.2-3B-Instruct",
     messages=[
-        {"role": "user", "content": "Tell me about Asia."}
+        {"role": "user", "content": "Tell me about 2 cities in Asia."}
     ],
     temperature=0.2,
     max_tokens=2048,
