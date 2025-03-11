@@ -90,8 +90,8 @@ class TestRAGMethods(unittest.TestCase):
         Test the RAG method with secret sharing.
         """
         num_parties = 2  # Replace with dynamic value if needed
-        additive_key = nilql.secret_key({'nodes': [{}] * num_parties}, {'sum': True})
-        xor_key = nilql.secret_key({'nodes': [{}] * num_parties}, {'store': True})
+        additive_key = nilql.ClusterKey.generate({'nodes': [{}] * num_parties}, {'sum': True})
+        xor_key = nilql.ClusterKey.generate({'nodes': [{}] * num_parties}, {'store': True})
 
         for case in self.test_cases:
             file_path = case["file_path"]
@@ -144,7 +144,7 @@ class TestRAGMethods(unittest.TestCase):
             # Restructure the array of differences so it can be revealed next by nilQL.
             nilql_differences = [
                 [
-                    [differences_shares[party][i][j] for party in range(num_parties)]
+                    [int(differences_shares[party][i][j]) for party in range(num_parties)]
                     for j in range(len(differences_shares[0][i]))
                 ]
                 for i in range(len(differences_shares[0]))
