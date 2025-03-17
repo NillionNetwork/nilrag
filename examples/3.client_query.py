@@ -8,7 +8,8 @@ import json
 from nilrag.nildb_requests import NilDB, Node
 
 
-JSON_FILE = "examples/query_nildb_config.json"
+JSON_FILE = "examples/nildb_config.json"
+PROMPT = "Who is Danielle Miller?"
 
 # Load NilDB from JSON file if it exists
 if os.path.exists(JSON_FILE):
@@ -20,8 +21,8 @@ if os.path.exists(JSON_FILE):
             nodes.append(
                 Node(
                     url=node_data["url"],
-                    node_id=None,
-                    org=None,
+                    node_id=node_data.get("node_id"),
+                    org=node_data.get("org"),
                     bearer_token=node_data.get("bearer_token"),
                     schema_id=node_data.get("schema_id"),
                     diff_query_id=node_data.get("diff_query_id"),
@@ -37,11 +38,11 @@ print()
 
 print('Query nilAI with nilRAG...')
 response = nilDB.nilai_chat_completion(
-    nilai_url="NILAI_URL", # Update with your nilAI node url
-    token="NILAI_TOKEN", # Update with your nilAI token
-    model="meta-llama/Llama-3.2-3B-Instruct",
+    nilai_url="https://nilai-a779.nillion.network",
+    token="Nillion2025",
+    model="meta-llama/Llama-3.1-8B-Instruct",
     messages=[
-        {"role": "user", "content": "Tell me about 2 cities in Asia."}
+        {"role": "user", "content": PROMPT}
     ],
     temperature=0.2,
     max_tokens=2048,

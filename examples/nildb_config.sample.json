@@ -1,0 +1,29 @@
+{
+    "nodes": [
+        {
+            "url": "https://nildb-nx8v.nillion.network/api/v1",
+            "node_id": "Add first Node DID here",
+            "org": "Add your ORG DID here",
+            "bearer_token": "",
+            "schema_id": "",
+            "diff_query_id": ""
+        },
+        {
+            "url": "https://nildb-p3mx.nillion.network/api/v1",
+            "node_id": "Add second Node DID here",
+            "org": "Add your ORG DID here",
+            "bearer_token": "",
+            "schema_id": "",
+            "diff_query_id": ""
+        },
+        {
+            "url": "https://nildb-rugk.nillion.network/api/v1",
+            "node_id": "Add third Node DID here",
+            "org": "Add your ORG DID here",
+            "bearer_token": "",
+            "schema_id": "",
+            "diff_query_id": ""
+        }
+    ],
+    "secret_key": "Add you SECRET_KEY here"
+}
