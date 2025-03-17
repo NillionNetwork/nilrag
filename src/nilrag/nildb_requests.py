@@ -97,7 +97,7 @@ class NilDB:
             f"\nNode({i}):\n{repr(node)}" for i, node in enumerate(self.nodes)
         )
 
-    def _init_schema(self):
+    def init_schema(self):
         """
         Initialize the nilDB schema across all nodes.
 
@@ -149,13 +149,14 @@ class NilDB:
             response = requests.post(
                 url, headers=headers, data=json.dumps(payload), timeout=3600
             )
-            if response.status_code != 200:
+            if response.status_code != 201:
                 raise ValueError(
                     f"Error in POST request: {response.status_code}, {response.text}"
                 )
-            print("Response JSON:", response.json())
+        print(f"Schema {schema_id} created successfully.")
+        return schema_id
 
-    def _init_diff_query(self):
+    def init_diff_query(self):
         """
         Initialize the difference query across all nilDB nodes.
 
@@ -215,11 +216,12 @@ class NilDB:
             response = requests.post(
                 url, headers=headers, data=json.dumps(payload), timeout=3600
             )
-            if response.status_code != 200:
+            if response.status_code != 201:
                 raise ValueError(
                     f"Error in POST request: {response.status_code}, {response.text}"
                 )
-            print("Response JSON:", response.json())
+        print(f"Query {diff_query_id} created successfully.")
+        return diff_query_id
 
     def generate_jwt(self, secret_key: str, ttl: int = 3600):
         """
@@ -234,6 +236,7 @@ class NilDB:
         # Convert the secret key from hex to bytes
         private_key = bytes.fromhex(secret_key)
         signer = SigningKey.from_string(private_key, curve=SECP256k1)
+        jwts = []
         for node in self.nodes:
             # Create payload for each node_id
             payload = {
@@ -245,6 +248,8 @@ class NilDB:
             # Create and sign the JWT
             node.bearer_token = jwt.encode(payload, signer.to_pem(), algorithm="ES256K")
             print(f"Generated JWT for {node.node_id}: {node.bearer_token}")
+            jwts.append(node.bearer_token)
+        return jwts
 
     def diff_query_execute(self, nilql_query_embedding: list[list[bytes]]):
         """

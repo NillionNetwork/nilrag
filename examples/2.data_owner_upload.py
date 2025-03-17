@@ -16,8 +16,7 @@ from nilrag.nildb_requests import NilDB, Node
 
 
 JSON_FILE = "examples/nildb_config.json"
-SECRET_KEY = "YOUR_SECRET_KEY" # Update with your SecretVault (nilDB) Secret Key
-FILE_PATH = 'examples/data/cities.txt'
+FILE_PATH = 'examples/data/20-fake.txt'
 
 # Load NilDB from JSON file if it exists
 if os.path.exists(JSON_FILE):
@@ -31,7 +30,7 @@ if os.path.exists(JSON_FILE):
                     node_data["url"],
                     node_data["node_id"],
                     node_data["org"],
-                    None,
+                    node_data["bearer_token"],
                     node_data.get("schema_id"),
                 )
             )
@@ -39,8 +38,6 @@ if os.path.exists(JSON_FILE):
 else:
     print("Error: NilDB configuration file not found.")
     sys.exit(1)
-
-nilDB.generate_jwt(SECRET_KEY, ttl=3600)
 
 print("NilDB instance:", nilDB)
 print()

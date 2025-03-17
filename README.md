@@ -104,38 +104,52 @@ pip install nilrag
 ## Data owner
 
 ### 1. Initialization
-If you would like to initialize your own schema, contact Nillion or open an
-issue in https://github.com/NillionNetwork/nilrag. You will be provided with:
+First, copy the sample nilDB config file:
+```
+cp ./examples/nildb_config.sample.json ./examples/nildb_config.json
+```
+Next, register a new organization in Nillion's [SecretVault Registration
+Portal](https://sv-sda-registration.replit.app/) and fill in the details in your
+nilDB config file `./examples/nildb_config.json`.
+
+You can safely ignore `bearer_token`, `schema_id`, and `diff_query_id` as we'll
+fill these out later.
+
+You are all set to create your first schema and query for RAG. At the minimum,
+they should look like:
 1. `schema`: which is the structure of the data that the data owner will store.
     In this case we have `embedding` (`vector<integer>`) and `chunk` (`string`).
     Each data owner will upload multiple `embedding`s and `chunk`.
 2. `query`: This is the nilDB query that will compute the differences under
     MPC between the stored data owner embeddings and the client's embedding.
 
+We have an example that creates a schema and a query, run it as:
+```bash
+uv run examples/1.init_schema_query.py
+```
+This, will fill out `bearer_token`, `schema_id`, and `diff_query_id` in
+`./examples/nildb_config.json`. Verify that it has been populated successfully.
+
+
 ### 2. Uploading Documents
 After initialization, the data owner can upload their documents to the nilDB
 instance. We provide an example of how to do this in
-[examples/data_owner_upload.py](examples/data_owner_upload.py).
+[examples/2.data_owner_upload.py](examples/2.data_owner_upload.py).
 
 By running the script, the documents are uploaded to the nilDB instance in secret-shared form:
 ```bash
-uv run examples/data_owner_upload.py
+uv run examples/2.data_owner_upload.py
 ```
 
-## 3. nilAI (TEE Server)
-If you would like access to nilAI contact Nillion or open an issue in
-https://github.com/NillionNetwork/nilrag.
-
-
-## 4. Client Query
+## 3. Client Query
 After having nilDB initialized, documents uploaded, and access to nilAI, the
 client can query the nilDB instance. We provide an example of how to do this in
-[examples/client_query.py](examples/client_query.py).
+[examples/3.client_query.py](examples/3.client_query.py).
 
 By running the script, the client's query is sent to nilAI and the response is
 returned:
 ```bash
-uv run examples/client_query.py
+uv run examples/3.client_query.py
 ```
 
 ## Running Tests

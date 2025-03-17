@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "ecdsa>=0.19.0",
+    "faker>=37.0.0",
     "nilql==0.0.0a12",
     "numpy<2.0.0",
     "PyJWT[crypto]~=2.10.1",
