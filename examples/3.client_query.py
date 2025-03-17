@@ -22,7 +22,7 @@ if os.path.exists(JSON_FILE):
                 Node(
                     url=node_data["url"],
                     node_id=node_data.get("node_id"),
-                    org=node_data.get("org"),
+                    org=data.get("org_did"),
                     bearer_token=node_data.get("bearer_token"),
                     schema_id=node_data.get("schema_id"),
                     diff_query_id=node_data.get("diff_query_id"),

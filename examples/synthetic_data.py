@@ -1,3 +1,10 @@
+"""
+Script to generate synthetic data for testing nilRAG.
+
+Usage:
+uv run examples/synthetic_data.py --rows 100 --output examples/data/100-fake.txt
+"""
+
 import argparse
 from faker import Faker
 
@@ -7,10 +14,11 @@ def generate_fake_profiles(rows: int, output_file: str):
     with open(output_file, "w", encoding="utf-8") as file:
         for _ in range(rows):
             name = fake.name()
+            address = fake.address().replace('\n', ', ')
             sentence = (
                 f"{name} works at {fake.company()} as a {fake.job()}. "
                 f"{name} was born on {fake.profile()['birthdate']} "
-                f"and lives at {fake.address().replace('\n', ', ')}."
+                f"and lives at {address}."
             )
             file.write(sentence + "\n\n")
 
