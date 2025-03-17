@@ -16,14 +16,14 @@ if os.path.exists(JSON_FILE):
     print("Loading NilDB configuration from file...")
     with open(JSON_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-        secret_key = data["secret_key"]
+        secret_key = data["org_secret_key"]
         nodes = []
         for node_data in data["nodes"]:
             nodes.append(
                 Node(
                     node_data["url"],
                     node_data["node_id"],
-                    node_data["org"],
+                    data["org_did"],
                 )
             )
         nilDB = NilDB(nodes)

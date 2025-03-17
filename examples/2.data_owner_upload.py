@@ -29,7 +29,7 @@ if os.path.exists(JSON_FILE):
                 Node(
                     node_data["url"],
                     node_data["node_id"],
-                    node_data["org"],
+                    data["org_did"],
                     node_data["bearer_token"],
                     node_data.get("schema_id"),
                 )
