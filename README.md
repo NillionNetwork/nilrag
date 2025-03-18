@@ -50,7 +50,7 @@ inference).
     Similar to the data encoding by data owners, the query is processed into its corresponding embeddings:
 
 3) **NilDB:** Secure Storage and Query Handling
-    NilDB stores the blinded chunks and embeddings provided by data owners. When a client submits a query, NilDB computes the differences between the query’s embeddings and each stored embedding in a privacy-preserving manner:
+    NilDB stores the blinded chunks and embeddings provided by data owners. When a client submits a query, NilDB computes the differences between the query's embeddings and each stored embedding in a privacy-preserving manner:
     ```python
     differences = [embedding - query for embedding in embeddings]
     ```
@@ -85,19 +85,19 @@ steps:
 
 ## Installation
 First install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run:
-```bash
+```shell
 # Create and activate virtual environment with uv
 uv venv
 source .venv/bin/activate
 ```
 
 Then either follow the local installation:
-```bash
+```shell
 # Install package in development mode
 uv pip install -e .
 ```
 or use `pip`:
-```bash
+```shell
 pip install nilrag
 ```
 
@@ -105,7 +105,7 @@ pip install nilrag
 
 ### 1. Initialization
 First, copy the sample nilDB config file:
-```
+```shell
 cp ./examples/nildb_config.sample.json ./examples/nildb_config.json
 ```
 Next, register a new organization in Nillion's [SecretVault Registration
@@ -124,11 +124,15 @@ they should look like:
     MPC between the stored data owner embeddings and the client's embedding.
 
 We have an example that creates a schema and a query, run it as:
-```bash
+```shell
+# Use default config file
 uv run examples/1.init_schema_query.py
+
+# Or specify a custom config file
+uv run examples/1.init_schema_query.py --config /path/to/your/config.json
 ```
-This, will fill out `bearer_token`, `schema_id`, and `diff_query_id` in
-`./examples/nildb_config.json`. Verify that it has been populated successfully.
+This, will fill out `bearer_token`, `schema_id`, and `diff_query_id` in your
+config file. Verify that it has been populated successfully.
 
 
 ### 2. Uploading Documents
@@ -137,8 +141,12 @@ instance. We provide an example of how to do this in
 [examples/2.data_owner_upload.py](examples/2.data_owner_upload.py).
 
 By running the script, the documents are uploaded to the nilDB instance in secret-shared form:
-```bash
+```shell
+# Use default config and data file
 uv run examples/2.data_owner_upload.py
+
+# Or specify custom config and data files
+uv run examples/2.data_owner_upload.py --config /path/to/config.json --file /path/to/data.txt
 ```
 
 ## 3. Client Query
@@ -148,12 +156,16 @@ client can query the nilDB instance. We provide an example of how to do this in
 
 By running the script, the client's query is sent to nilAI and the response is
 returned:
-```bash
+```shell
+# Use default config and prompt
 uv run examples/3.client_query.py
+
+# Or specify custom config and prompt
+uv run examples/3.client_query.py --config /path/to/config.json --prompt "Your custom query here"
 ```
 
 ## Running Tests
-```bash
+```shell
 # Run a specific test file
 uv run -m unittest test.rag
 ```

@@ -63,12 +63,12 @@ class Node:  # pylint: disable=too-few-public-methods
         Returns:
             str: Multi-line string containing all Node attributes
         """
-        return f"URL: {self.url}\
-            \nnode_id: {self.node_id}\
-            \norg: {self.org}\
-            \nBearer Token: {self.bearer_token}\
-            \nSchema ID: {self.schema_id}\
-            \nDifferences Query ID: {self.diff_query_id}"
+        return f"  URL: {self.url}\
+            \n  node_id: {self.node_id}\
+            \n  org: {self.org}\
+            \n  Bearer Token: {self.bearer_token}\
+            \n  Schema ID: {self.schema_id}\
+            \n  Differences Query ID: {self.diff_query_id}"
 
 
 class NilDB:
@@ -247,7 +247,6 @@ class NilDB:
 
             # Create and sign the JWT
             node.bearer_token = jwt.encode(payload, signer.to_pem(), algorithm="ES256K")
-            print(f"Generated JWT for {node.node_id}: {node.bearer_token}")
             jwts.append(node.bearer_token)
         return jwts
 
