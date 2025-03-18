@@ -2,14 +2,14 @@
 nilDB class definition for secure data storage and RAG inference.
 """
 
-import json
-import time
 import asyncio
-import aiohttp
-from typing import Optional, List, Dict, Any
-from uuid import uuid4
+import time
+from dataclasses import dataclass
 from http import HTTPStatus
+from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
+import aiohttp
 import jwt
 import requests
 from ecdsa import SECP256k1, SigningKey
@@ -18,6 +18,20 @@ from ecdsa import SECP256k1, SigningKey
 TIMEOUT = 3600
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
+
+
+@dataclass
+class ChatCompletionConfig:
+    """Configuration for chat completion requests."""
+
+    nilai_url: str
+    token: str
+    messages: list[dict]
+    model: str = "meta-llama/Llama-3.2-3B-Instruct"
+    temperature: float = 0.7
+    max_tokens: int = 2048
+    stream: bool = False
+
 
 class Node:  # pylint: disable=too-few-public-methods
     """
@@ -36,8 +50,6 @@ class Node:  # pylint: disable=too-few-public-methods
     """
 
     def __init__(
-        # pylint: disable=too-many-positional-arguments
-        # pylint: disable=too-many-arguments
         self,
         url: str,
         node_id: Optional[str] = None,
@@ -45,6 +57,8 @@ class Node:  # pylint: disable=too-few-public-methods
         bearer_token: Optional[str] = None,
         schema_id: Optional[str] = None,
         diff_query_id: Optional[str] = None,
+        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-positional-arguments
     ):
         """
         Initialize a new Node instance.
@@ -154,15 +168,21 @@ class NilDB:
             for attempt in range(MAX_RETRIES):
                 try:
                     async with aiohttp.ClientSession() as session:
-                        async with session.post(url, headers=headers, json=payload, timeout=TIMEOUT) as response:
+                        async with session.post(
+                            url, headers=headers, json=payload, timeout=TIMEOUT
+                        ) as response:
                             if response.status != HTTPStatus.CREATED:
                                 error_text = await response.text()
-                                raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                                raise ValueError(
+                                    f"Error in POST request: {response.status}, {error_text}"
+                                )
                             node.schema_id = schema_id
                             return
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                     if attempt == MAX_RETRIES - 1:
-                        raise ValueError(f"Failed to create schema after {MAX_RETRIES} attempts: {str(e)}")
+                        raise ValueError(
+                            f"Failed to create schema after {MAX_RETRIES} attempts: {str(e)}"
+                        ) from e
                     await asyncio.sleep(RETRY_DELAY * (attempt + 1))
 
         # Create schema on all nodes in parallel
@@ -191,7 +211,10 @@ class NilDB:
             }
             payload = {
                 "_id": diff_query_id,
-                "name": "Returns the difference between the nilDB embeddings and the query embedding",
+                "name": (
+                    "Returns the difference between the nilDB embeddings "
+                    "and the query embedding"
+                ),
                 "schema": node.schema_id,
                 "variables": {
                     "query_embedding": {
@@ -229,15 +252,21 @@ class NilDB:
             for attempt in range(MAX_RETRIES):
                 try:
                     async with aiohttp.ClientSession() as session:
-                        async with session.post(url, headers=headers, json=payload, timeout=TIMEOUT) as response:
+                        async with session.post(
+                            url, headers=headers, json=payload, timeout=TIMEOUT
+                        ) as response:
                             if response.status != HTTPStatus.CREATED:
                                 error_text = await response.text()
-                                raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                                raise ValueError(
+                                    f"Error in POST request: {response.status}, {error_text}"
+                                )
                             node.diff_query_id = diff_query_id
                             return
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                     if attempt == MAX_RETRIES - 1:
-                        raise ValueError(f"Failed to create query after {MAX_RETRIES} attempts: {str(e)}")
+                        raise ValueError(
+                            f"Failed to create query after {MAX_RETRIES} attempts: {str(e)}"
+                        ) from e
                     await asyncio.sleep(RETRY_DELAY * (attempt + 1))
 
         # Create query on all nodes in parallel
@@ -292,7 +321,9 @@ class NilDB:
             for party in range(len(self.nodes))
         ]
 
-        async def execute_query_on_node(node: Node, node_index: int) -> List[Dict[str, Any]]:
+        async def execute_query_on_node(
+            node: Node, node_index: int
+        ) -> List[Dict[str, Any]]:
             url = node.url + "/queries/execute"
             headers = {
                 "Authorization": "Bearer " + str(node.bearer_token),
@@ -306,17 +337,23 @@ class NilDB:
             for attempt in range(MAX_RETRIES):
                 try:
                     async with aiohttp.ClientSession() as session:
-                        async with session.post(url, headers=headers, json=payload, timeout=TIMEOUT) as response:
+                        async with session.post(
+                            url, headers=headers, json=payload, timeout=TIMEOUT
+                        ) as response:
                             if response.status != HTTPStatus.OK:
                                 error_text = await response.text()
-                                raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                                raise ValueError(
+                                    f"Error in POST request: {response.status}, {error_text}"
+                                )
                             result = await response.json()
                             if result.get("data") is None:
                                 raise ValueError(f"Error in Response: {result}")
                             return result.get("data", [])
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                     if attempt == MAX_RETRIES - 1:
-                        raise ValueError(f"Failed to execute query after {MAX_RETRIES} attempts: {str(e)}")
+                        raise ValueError(
+                            f"Failed to execute query after {MAX_RETRIES} attempts: {str(e)}"
+                        ) from e
                     await asyncio.sleep(RETRY_DELAY * (attempt + 1))
 
         # Execute queries on all nodes in parallel
@@ -337,6 +374,7 @@ class NilDB:
         Raises:
             ValueError: If query execution fails on any nilDB node
         """
+
         async def read_from_node(node: Node) -> List[Dict[str, Any]]:
             url = node.url + "/data/read"
             headers = {
@@ -348,17 +386,23 @@ class NilDB:
             for attempt in range(MAX_RETRIES):
                 try:
                     async with aiohttp.ClientSession() as session:
-                        async with session.post(url, headers=headers, json=payload, timeout=TIMEOUT) as response:
+                        async with session.post(
+                            url, headers=headers, json=payload, timeout=TIMEOUT
+                        ) as response:
                             if response.status != HTTPStatus.OK:
                                 error_text = await response.text()
-                                raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                                raise ValueError(
+                                    f"Error in POST request: {response.status}, {error_text}"
+                                )
                             result = await response.json()
                             if result.get("data") is None:
                                 raise ValueError(f"Error in Response: {result}")
                             return result.get("data", [])
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                     if attempt == MAX_RETRIES - 1:
-                        raise ValueError(f"Failed to read chunks after {MAX_RETRIES} attempts: {str(e)}")
+                        raise ValueError(
+                            f"Failed to read chunks after {MAX_RETRIES} attempts: {str(e)}"
+                        ) from e
                     await asyncio.sleep(RETRY_DELAY * (attempt + 1))
 
         # Read from all nodes in parallel
@@ -422,7 +466,13 @@ class NilDB:
             lst_chunk_shares
         ), f"Mismatch: {len(lst_embedding_shares)} embeddings vs {len(lst_chunk_shares)} chunks."
 
-        async def upload_to_node(node: Node, node_index: int, data_id: str, embedding_shares: list[int], chunk_share: bytes):
+        async def upload_to_node(
+            node: Node,
+            _node_index: int,  # pylint: disable=unused-argument
+            data_id: str,
+            embedding_shares: list[int],
+            chunk_share: bytes,
+        ):
             url = node.url + "/data/create"
             headers = {
                 "Authorization": "Bearer " + str(node.bearer_token),
@@ -444,12 +494,16 @@ class NilDB:
                 async with session.post(url, headers=headers, json=payload) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                        raise ValueError(
+                            f"Error in POST request: {response.status}, {error_text}"
+                        )
                     return await response.json()
 
         # Create tasks for all uploads
         tasks = []
-        for embedding_shares, chunk_shares in zip(lst_embedding_shares, lst_chunk_shares):
+        for embedding_shares, chunk_shares in zip(
+            lst_embedding_shares, lst_chunk_shares
+        ):
             data_id = str(uuid4())
             for i, node in enumerate(self.nodes):
                 # Join the shares of one embedding in one vector
@@ -461,7 +515,7 @@ class NilDB:
                     i,
                     data_id,
                     node_i_embedding_shares,
-                    encoded_node_i_chunk_share
+                    encoded_node_i_chunk_share,
                 )
                 tasks.append(task)
 
@@ -470,53 +524,36 @@ class NilDB:
 
         # Print results
         for result in results:
-            print({
-                "status_code": 200,
-                "message": "Success",
-                "response_json": result
-            })
+            print({"status_code": 200, "message": "Success", "response_json": result})
 
     def nilai_chat_completion(
-        # pylint: disable=too-many-positional-arguments
-        # pylint: disable=too-many-arguments
         self,
-        nilai_url: str,
-        token: str,
-        messages: list[dict],
-        model: str = "meta-llama/Llama-3.2-3B-Instruct",
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
-        stream: bool = False,
+        config: ChatCompletionConfig,
     ) -> dict:
         """
         Query the chat completion endpoint of the nilai API.
 
         Args:
-            nilai_url (str): Base URL for the nilai API
-            token (str): Bearer token for authentication
-            messages (list[dict]): List of message dictionaries (role and content)
-            model (str): AI model to use for completion (default: "meta-llama/Llama-3.2-3B-Instruct")
-            temperature (float): Sampling temperature (default: 0.7)
-            max_tokens (int): Maximum tokens to generate (default: 2048)
-            stream (bool): Whether to stream the response (default: False)
+            config (ChatCompletionConfig): Configuration for the chat completion request
 
         Returns:
             dict: Chat response from the nilai API
         """
         # Ensure URL format
-        nilai_url = nilai_url.rstrip("/") + "/v1/chat/completions"
+        nilai_url = config.nilai_url.rstrip("/") + "/v1/chat/completions"
 
         # Authorization header
         headers = {
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {config.token}",
             "accept": "application/json",
             "Content-Type": "application/json",
         }
 
         # Ensure messages include required roles
-        has_system = any(message.get("role") == "system" for message in messages)
-        has_user = any(message.get("role") == "user" for message in messages)
+        has_system = any(message.get("role") == "system" for message in config.messages)
+        has_user = any(message.get("role") == "user" for message in config.messages)
 
+        messages = config.messages.copy()
         if not has_system:
             messages.insert(
                 0, {"role": "system", "content": "You are a helpful assistant."}
@@ -539,11 +576,11 @@ class NilDB:
 
         # Construct payload
         payload = {
-            "model": model,
+            "model": config.model,
             "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": stream,
+            "temperature": config.temperature,
+            "max_tokens": config.max_tokens,
+            "stream": config.stream,
             "nilrag": nilrag,
         }
 
