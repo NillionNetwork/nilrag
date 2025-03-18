@@ -2,89 +2,92 @@
 Script to upload data to nilDB using nilRAG.
 """
 
-import os
-import json
-import sys
 import argparse
-import time
 import asyncio
-import nilql
-from nilrag.util import (
-    create_chunks,
-    encrypt_float_list,
-    generate_embeddings_huggingface,
-    load_file,
-)
-from nilrag.nildb_requests import NilDB, Node
+import time
 
+import nilql
+
+from nilrag.config import load_nil_db_config
+from nilrag.util import (create_chunks, encrypt_float_list,
+                         generate_embeddings_huggingface, load_file)
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
-DEFAULT_FILE_PATH = 'examples/data/20-fake.txt'
+DEFAULT_FILE_PATH = "examples/data/20-fake.txt"
+
 
 async def main():
-    parser = argparse.ArgumentParser(description='Upload data to nilDB using nilRAG')
-    parser.add_argument('--config', type=str, default=DEFAULT_CONFIG,
-                      help=f'Path to nilDB config file (default: {DEFAULT_CONFIG})')
-    parser.add_argument('--file', type=str, default=DEFAULT_FILE_PATH,
-                      help=f'Path to data file to upload (default: {DEFAULT_FILE_PATH})')
+    """
+    Upload data to nilDB using nilRAG.
+
+    This script:
+    1. Loads the nilDB configuration
+    2. Initializes encryption keys for different modes
+    3. Processes the input file into chunks and embeddings
+    4. Encrypts the data using nilQL
+    5. Uploads the encrypted data to nilDB nodes
+    """
+    parser = argparse.ArgumentParser(description="Upload data to nilDB using nilRAG")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=DEFAULT_CONFIG,
+        help=f"Path to nilDB config file (default: {DEFAULT_CONFIG})",
+    )
+    parser.add_argument(
+        "--file",
+        type=str,
+        default=DEFAULT_FILE_PATH,
+        help=f"Path to data file to upload (default: {DEFAULT_FILE_PATH})",
+    )
     args = parser.parse_args()
 
-    # Load NilDB from JSON file if it exists
-    if os.path.exists(args.config):
-        print(f"Loading NilDB configuration from {args.config}...")
-        with open(args.config, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            nodes = []
-            for node_data in data["nodes"]:
-                nodes.append(
-                    Node(
-                        node_data["url"],
-                        node_data["node_id"],
-                        data["org_did"],
-                        node_data["bearer_token"],
-                        node_data.get("schema_id"),
-                    )
-                )
-            nilDB = NilDB(nodes)
-    else:
-        print(f"Error: NilDB configuration file not found at {args.config}")
-        sys.exit(1)
-
-    print(nilDB)
+    # Load NilDB configuration
+    nil_db, _ = load_nil_db_config(
+        args.config,
+        require_bearer_token=True,
+        require_schema_id=True,
+    )
+    print(nil_db)
     print()
 
     # Initialize secret keys for different modes of operation
-    num_nodes = len(nilDB.nodes)
-    additive_key = nilql.ClusterKey.generate({'nodes': [{}] * num_nodes}, {'sum': True})
-    xor_key = nilql.ClusterKey.generate({'nodes': [{}] * num_nodes}, {'store': True})
+    num_nodes = len(nil_db.nodes)
+    additive_key = nilql.ClusterKey.generate(
+        {"nodes": [{}] * num_nodes}, {"sum": True}
+    )
+    xor_key = nilql.ClusterKey.generate(
+        {"nodes": [{}] * num_nodes}, {"store": True}
+    )
 
     # Load and process input file
     paragraphs = load_file(args.file)
     chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
 
     # Generate embeddings and chunks
-    print('Generating embeddings and chunks...')
+    print("Generating embeddings and chunks...")
     start_time = time.time()
     embeddings = generate_embeddings_huggingface(chunks)
     end_time = time.time()
-    print(f'Embeddings and chunks generated in {end_time - start_time:.2f} seconds!')
+    print(f"Embeddings and chunks generated in {end_time - start_time:.2f} seconds!")
 
     # Encrypt chunks and embeddings
-    print('Encrypting data...')
+    print("Encrypting data...")
     start_time = time.time()
     chunks_shares = [nilql.encrypt(xor_key, chunk) for chunk in chunks]
     embeddings_shares = [
         encrypt_float_list(additive_key, embedding) for embedding in embeddings
     ]
     end_time = time.time()
-    print(f'Data encrypted in {end_time - start_time:.2f} seconds')
+    print(f"Data encrypted in {end_time - start_time:.2f} seconds")
 
     # Upload encrypted data to nilDB
-    print('Uploading data...')
+    print("Uploading data...")
     start_time = time.time()
-    await nilDB.upload_data(embeddings_shares, chunks_shares)
+    await nil_db.upload_data(embeddings_shares, chunks_shares)
     end_time = time.time()
-    print(f'Data uploaded in {end_time - start_time:.2f} seconds')
+    print(f"Data uploaded in {end_time - start_time:.2f} seconds")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
