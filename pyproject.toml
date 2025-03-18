@@ -1,10 +1,11 @@
 [project]
 name = "nilrag"
-version = "0.1.4"
+version = "0.1.5"
 description = "nilRAG SDK"
 authors = [
     { name = "Manuel Santos", email = "manuel.santos@nillion.com" },
-    { name = "Dimitris Mouris", email = "dimitris@nillion.com" }
+    { name = "Dimitris Mouris", email = "dimitris@nillion.com" },
+    { name = "Georgios Pentafragkas", email = "georgios.pentafragkas@nillion.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.11"
