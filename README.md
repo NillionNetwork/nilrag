@@ -1,4 +1,5 @@
-# nilRAG [![GitHub license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/NillionNetwork/nilrag/blob/main/LICENSE)
+# nilRAG [![PyPI version and link](https://badge.fury.io/py/nilrag.svg)](https://badge.fury.io/py/nilrag) [![GitHub license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/NillionNetwork/nilrag/blob/main/LICENSE)
+
 Retrieval Augmented Generation (RAG) using Nillion's
 [nilAI](https://github.com/NillionNetwork/nilAI),
 [nilDB](https://github.com/NillionNetwork/nildb), and
