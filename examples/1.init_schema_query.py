@@ -7,12 +7,13 @@ import json
 import sys
 import argparse
 import time
+import asyncio
 from nilrag.nildb_requests import NilDB, Node
 
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description='Initialize schema and query for nilDB')
     parser.add_argument('--config', type=str, default=DEFAULT_CONFIG,
                       help=f'Path to nilDB config file (default: {DEFAULT_CONFIG})')
@@ -47,13 +48,13 @@ def main():
     # Upload encrypted data to nilDB
     print("Initializing schema...")
     start_time = time.time()
-    schema_id = nilDB.init_schema()
+    schema_id = await nilDB.init_schema()
     end_time = time.time()
     print(f"Schema initialized successfully in {end_time - start_time:.2f} seconds")
 
     print("Initializing query...")
     start_time = time.time()
-    diff_query_id = nilDB.init_diff_query()
+    diff_query_id = await nilDB.init_diff_query()
     end_time = time.time()
     print(f"Query initialized successfully in {end_time - start_time:.2f} seconds")
 
@@ -66,4 +67,4 @@ def main():
     print("Updated nilDB configuration file with schema and query IDs.")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

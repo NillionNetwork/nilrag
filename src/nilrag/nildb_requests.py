@@ -4,13 +4,20 @@ nilDB class definition for secure data storage and RAG inference.
 
 import json
 import time
-from typing import Optional
+import asyncio
+import aiohttp
+from typing import Optional, List, Dict, Any
 from uuid import uuid4
+from http import HTTPStatus
 
 import jwt
 import requests
 from ecdsa import SECP256k1, SigningKey
 
+# Constants
+TIMEOUT = 3600
+MAX_RETRIES = 3
+RETRY_DELAY = 1  # seconds
 
 class Node:  # pylint: disable=too-few-public-methods
     """
@@ -97,9 +104,9 @@ class NilDB:
             f"\nNode({i}):\n{repr(node)}" for i, node in enumerate(self.nodes)
         )
 
-    def init_schema(self):
+    async def init_schema(self):
         """
-        Initialize the nilDB schema across all nodes.
+        Initialize the nilDB schema across all nodes asynchronously.
 
         Creates a schema for storing embeddings and chunks with a common schema ID
         across all nilDB nodes. The schema defines the structure for storing document
@@ -108,13 +115,10 @@ class NilDB:
         Raises:
             ValueError: If schema creation fails on any nilDB node
         """
-        schema_id = str(
-            uuid4()
-        )  # the schema_id is assumed to be the same across different nildb instances
-        for node in self.nodes:
-            node.schema_id = schema_id
-            url = node.url + "/schemas"
+        schema_id = str(uuid4())
 
+        async def create_schema_for_node(node: Node) -> None:
+            url = node.url + "/schemas"
             headers = {
                 "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json",
@@ -146,19 +150,30 @@ class NilDB:
                     },
                 },
             }
-            response = requests.post(
-                url, headers=headers, data=json.dumps(payload), timeout=3600
-            )
-            if response.status_code != 201:
-                raise ValueError(
-                    f"Error in POST request: {response.status_code}, {response.text}"
-                )
+
+            for attempt in range(MAX_RETRIES):
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(url, headers=headers, json=payload, timeout=TIMEOUT) as response:
+                            if response.status != HTTPStatus.CREATED:
+                                error_text = await response.text()
+                                raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                            node.schema_id = schema_id
+                            return
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    if attempt == MAX_RETRIES - 1:
+                        raise ValueError(f"Failed to create schema after {MAX_RETRIES} attempts: {str(e)}")
+                    await asyncio.sleep(RETRY_DELAY * (attempt + 1))
+
+        # Create schema on all nodes in parallel
+        tasks = [create_schema_for_node(node) for node in self.nodes]
+        await asyncio.gather(*tasks)
         print(f"Schema {schema_id} created successfully.")
         return schema_id
 
-    def init_diff_query(self):
+    async def init_diff_query(self):
         """
-        Initialize the difference query across all nilDB nodes.
+        Initialize the difference query across all nilDB nodes asynchronously.
 
         Creates a query that calculates the difference between stored embeddings
         and a query embedding. This query is used for similarity search operations.
@@ -166,19 +181,16 @@ class NilDB:
         Raises:
             ValueError: If query creation fails on any nilDB node
         """
-        diff_query_id = str(
-            uuid4()
-        )  # the diff_query_id is assumed to be the same across different nildb instances
-        for node in self.nodes:
-            node.diff_query_id = diff_query_id
-            url = node.url + "/queries"
+        diff_query_id = str(uuid4())
 
+        async def create_query_for_node(node: Node) -> None:
+            url = node.url + "/queries"
             headers = {
                 "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json",
             }
             payload = {
-                "_id": node.diff_query_id,
+                "_id": diff_query_id,
                 "name": "Returns the difference between the nilDB embeddings and the query embedding",
                 "schema": node.schema_id,
                 "variables": {
@@ -213,13 +225,24 @@ class NilDB:
                     },
                 ],
             }
-            response = requests.post(
-                url, headers=headers, data=json.dumps(payload), timeout=3600
-            )
-            if response.status_code != 201:
-                raise ValueError(
-                    f"Error in POST request: {response.status_code}, {response.text}"
-                )
+
+            for attempt in range(MAX_RETRIES):
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(url, headers=headers, json=payload, timeout=TIMEOUT) as response:
+                            if response.status != HTTPStatus.CREATED:
+                                error_text = await response.text()
+                                raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                            node.diff_query_id = diff_query_id
+                            return
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    if attempt == MAX_RETRIES - 1:
+                        raise ValueError(f"Failed to create query after {MAX_RETRIES} attempts: {str(e)}")
+                    await asyncio.sleep(RETRY_DELAY * (attempt + 1))
+
+        # Create query on all nodes in parallel
+        tasks = [create_query_for_node(node) for node in self.nodes]
+        await asyncio.gather(*tasks)
         print(f"Query {diff_query_id} created successfully.")
         return diff_query_id
 
@@ -250,206 +273,104 @@ class NilDB:
             jwts.append(node.bearer_token)
         return jwts
 
-    def diff_query_execute(self, nilql_query_embedding: list[list[bytes]]):
+    async def diff_query_execute(self, nilql_query_embedding: list[list[bytes]]):
         """
-        Execute the difference query across all nilDB nodes.
+        Execute the difference query across all nilDB nodes asynchronously.
 
         Args:
             nilql_query_embedding (list): Encrypted query embedding for all nilDB node.
-                Example:
-                [
-                    # First element of embedding vector, shared across nodes
-                    [
-                        b'share_for_node_0',  # Share for node 0
-                        b'share_for_node_1',  # Share for node 1
-                        b'share_for_node_2'   # Share for node 2
-                    ],
-                    # Second element of embedding vector, shared across nodes
-                    [
-                        b'share_for_node_0',
-                        b'share_for_node_1',
-                        b'share_for_node_2'
-                    ],
-                    # And so on for each element in the embedding vector...
-                ]
 
         Returns:
-            list: List of difference shares from each nilDB node
-                Example:
-                [
-                    [  # Shares from node 0
-                        {
-                            '_id': 'f1fc5d71-24a8-4b38-9c5b-0cba1e615acb',
-                            'difference': [0, 1, 2, 3, 4]
-                        },
-                        {
-                            '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964',
-                            'difference': [5, 6, 7, 8, 9]
-                        }
-                    ],
-                    [  # Shares from node 1
-                        {
-                            '_id': 'f1fc5d71-24a8-4b38-9c5b-0cba1e615acb',
-                            'difference': [10, 11, 12, 13, 14]
-                        },
-                        {
-                            '_id': '0997b6f4-ec0c-49fc-8428-1824c496a964',
-                            'difference': [15, 16, 17, 18, 19]
-                        }
-                    ]
-                ]
-
-        Example usage:
-            # Initialize secret key for 3 parties
-            additive_key = nilql.secret_key({'nodes': [{}] * 3}, {'sum': True})
-
-            # Generate query embedding from text
-            query_text = "what is the capital of France?"
-            query_embedding = generate_embeddings_huggingface([query_text])[0]
-
-            # Encrypt and share the query embedding
-            nilql_query_embedding = encrypt_float_list(additive_key, query_embedding)
-
-            # Execute query and get differences
-            difference_shares = nildb.diff_query_execute(nilql_query_embedding)
+            list: List of difference shares from each nilDB node.
 
         Raises:
             ValueError: If query execution fails on any nilDB node
         """
-
         # Rearrange nilql_query_embedding to group by party
         query_embedding_shares = [
             [entry[party] for entry in nilql_query_embedding]
             for party in range(len(self.nodes))
         ]
-        difference_shares = []
 
-        for i, node in enumerate(self.nodes):
+        async def execute_query_on_node(node: Node, node_index: int) -> List[Dict[str, Any]]:
             url = node.url + "/queries/execute"
-            # Authorization header with the provided token
             headers = {
                 "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json",
             }
-            diff_query_id = node.diff_query_id
-
-            # Schema payload
             payload = {
-                "id": str(diff_query_id),
-                "variables": {"query_embedding": query_embedding_shares[i]},
+                "id": str(node.diff_query_id),
+                "variables": {"query_embedding": query_embedding_shares[node_index]},
             }
 
-            # Send POST request
-            response = requests.post(
-                url, headers=headers, data=json.dumps(payload), timeout=3600
-            )
-            if response.status_code != 200:
-                raise ValueError(
-                    f"Error in POST request: {response.status_code}, {response.text}"
-                )
-            try:
-                difference_shares_party_i = response.json().get("data")
-                if difference_shares_party_i is None:
-                    raise ValueError(f"Error in Response: {response.text}")
-                difference_shares.append(difference_shares_party_i)
-            except ValueError as e:
-                print(f"Failed to parse JSON response: {e}")
-                return response.text
+            for attempt in range(MAX_RETRIES):
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(url, headers=headers, json=payload, timeout=TIMEOUT) as response:
+                            if response.status != HTTPStatus.OK:
+                                error_text = await response.text()
+                                raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                            result = await response.json()
+                            if result.get("data") is None:
+                                raise ValueError(f"Error in Response: {result}")
+                            return result.get("data", [])
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    if attempt == MAX_RETRIES - 1:
+                        raise ValueError(f"Failed to execute query after {MAX_RETRIES} attempts: {str(e)}")
+                    await asyncio.sleep(RETRY_DELAY * (attempt + 1))
 
+        # Execute queries on all nodes in parallel
+        tasks = [execute_query_on_node(node, i) for i, node in enumerate(self.nodes)]
+        difference_shares = await asyncio.gather(*tasks)
         return difference_shares
 
-    def chunk_query_execute(self, chunk_ids: list[str]):
+    async def chunk_query_execute(self, chunk_ids: list[str]):
         """
-        Retrieve chunks by their IDs from all nilDB nodes.
+        Retrieve chunks by their IDs from all nilDB nodes asynchronously.
 
         Args:
             chunk_ids (list): List of chunk IDs to retrieve
 
         Returns:
-            list: List of chunk shares from each nilDB node. For example, with 3 nodes and 2 chunks:
-                [
-                    # Shares from node 1
-                    [
-                        {   # Same ID across all nodes for the same secret
-                            '_id': '123e4567-e89b-12d3-a456-426614174000',
-                            'chunk': 'base64EncodedShare1ForChunk1'
-                        },
-                        {   # Same ID across all nodes for the same secret
-                            '_id': '987fcdeb-51a2-43d7-9012-345678901234',
-                            'chunk': 'base64EncodedShare1ForChunk2'
-                        }
-                    ],
-                    # Shares from node 2
-                    [
-                        {
-                            '_id': '123e4567-e89b-12d3-a456-426614174000',
-                            'chunk': 'base64EncodedShare2ForChunk1'
-                        },
-                        {
-                            '_id': '987fcdeb-51a2-43d7-9012-345678901234',
-                            'chunk': 'base64EncodedShare2ForChunk2'
-                        }
-                    ],
-                    # Shares from node 3
-                    [
-                        {
-                            '_id': '123e4567-e89b-12d3-a456-426614174000',
-                            'chunk': 'base64EncodedShare3ForChunk1'
-                        },
-                        {
-                            '_id': '987fcdeb-51a2-43d7-9012-345678901234',
-                            'chunk': 'base64EncodedShare3ForChunk2'
-                        }
-                    ]
-                ]
-
-        Example:
-            # Get top k document IDs from similarity search
-            top_k = 2
-            top_k_ids = [item['_id'] for item in sorted_ids[:top_k]]
-
-            # Retrieve the chunks for those IDs
-            chunk_shares = nilDB.chunk_query_execute(top_k_ids)
+            list: List of chunk shares from each nilDB node.
 
         Raises:
             ValueError: If query execution fails on any nilDB node
         """
-        chunk_shares = []
-        for node in self.nodes:
+        async def read_from_node(node: Node) -> List[Dict[str, Any]]:
             url = node.url + "/data/read"
-            # Authorization header with the provided token
             headers = {
                 "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json",
             }
-
-            # Schema payload
             payload = {"schema": node.schema_id, "filter": {"_id": {"$in": chunk_ids}}}
 
-            # Send POST request
-            response = requests.post(
-                url, headers=headers, data=json.dumps(payload), timeout=3600
-            )
-            if response.status_code != 200:
-                raise ValueError(
-                    f"Error in POST request: {response.status_code}, {response.text}"
-                )
-            try:
-                chunk_shares_party_i = response.json().get("data")
-                if chunk_shares_party_i is None:
-                    raise ValueError(f"Error in Response: {response.text}")
-                chunk_shares.append(chunk_shares_party_i)
-            except ValueError as e:
-                print(f"Failed to parse JSON response: {e}")
-                return response.text
+            for attempt in range(MAX_RETRIES):
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(url, headers=headers, json=payload, timeout=TIMEOUT) as response:
+                            if response.status != HTTPStatus.OK:
+                                error_text = await response.text()
+                                raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                            result = await response.json()
+                            if result.get("data") is None:
+                                raise ValueError(f"Error in Response: {result}")
+                            return result.get("data", [])
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    if attempt == MAX_RETRIES - 1:
+                        raise ValueError(f"Failed to read chunks after {MAX_RETRIES} attempts: {str(e)}")
+                    await asyncio.sleep(RETRY_DELAY * (attempt + 1))
 
+        # Read from all nodes in parallel
+        tasks = [read_from_node(node) for node in self.nodes]
+        chunk_shares = await asyncio.gather(*tasks)
         return chunk_shares
 
-    def upload_data(
+    async def upload_data(
         self, lst_embedding_shares: list[list[int]], lst_chunk_shares: list[list[bytes]]
     ):
         """
-        Upload embeddings and chunks to all nilDB nodes.
+        Upload embeddings and chunks to all nilDB nodes asynchronously.
 
         Args:
             lst_embedding_shares (list): List of embedding shares for each document,
@@ -490,7 +411,7 @@ class NilDB:
             >>> embeddings_shares = [encrypt_float_list(additive_key, emb) for emb in embeddings]
             >>>
             >>> # Upload to nilDB nodes
-            >>> nilDB.upload_data(embeddings_shares, chunks_shares)
+            >>> await nilDB.upload_data(embeddings_shares, chunks_shares)
 
         Raises:
             AssertionError: If number of embeddings and chunks don't match
@@ -501,51 +422,59 @@ class NilDB:
             lst_chunk_shares
         ), f"Mismatch: {len(lst_embedding_shares)} embeddings vs {len(lst_chunk_shares)} chunks."
 
-        for embedding_shares, chunk_shares in zip(
-            lst_embedding_shares, lst_chunk_shares
-        ):
-            # embeddings_shares [384][3]
-            # chunks_shares [3][268]
+        async def upload_to_node(node: Node, node_index: int, data_id: str, embedding_shares: list[int], chunk_share: bytes):
+            url = node.url + "/data/create"
+            headers = {
+                "Authorization": "Bearer " + str(node.bearer_token),
+                "Content-Type": "application/json",
+            }
 
-            # 'data_id' has to be the same for every node to allow secret reconstructions
+            payload = {
+                "schema": node.schema_id,
+                "data": [
+                    {
+                        "_id": data_id,
+                        "embedding": embedding_shares,
+                        "chunk": chunk_share,
+                    }
+                ],
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=payload) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise ValueError(f"Error in POST request: {response.status}, {error_text}")
+                    return await response.json()
+
+        # Create tasks for all uploads
+        tasks = []
+        for embedding_shares, chunk_shares in zip(lst_embedding_shares, lst_chunk_shares):
             data_id = str(uuid4())
             for i, node in enumerate(self.nodes):
-                url = node.url + "/data/create"
-                # Authorization header with the provided token
-                headers = {
-                    "Authorization": "Bearer " + str(node.bearer_token),
-                    "Content-Type": "application/json",
-                }
                 # Join the shares of one embedding in one vector
                 node_i_embedding_shares = [e[i] for e in embedding_shares]
                 encoded_node_i_chunk_share = chunk_shares[i]
-                # Schema payload
-                payload = {
-                    "schema": node.schema_id,
-                    "data": [
-                        {
-                            "_id": data_id,
-                            "embedding": node_i_embedding_shares,
-                            "chunk": encoded_node_i_chunk_share,
-                        }
-                    ],
-                }
 
-                # Send POST request
-                response = requests.post(
-                    url, headers=headers, data=json.dumps(payload), timeout=3600
+                task = upload_to_node(
+                    node,
+                    i,
+                    data_id,
+                    node_i_embedding_shares,
+                    encoded_node_i_chunk_share
                 )
-                if response.status_code != 200:
-                    raise ValueError(
-                        f"Error in POST request: {response.status_code}, {response.text}"
-                    )
-                print(
-                    {
-                        "status_code": response.status_code,
-                        "message": "Success",
-                        "response_json": response.json(),
-                    }
-                )
+                tasks.append(task)
+
+        # Execute all uploads in parallel
+        results = await asyncio.gather(*tasks)
+
+        # Print results
+        for result in results:
+            print({
+                "status_code": 200,
+                "message": "Success",
+                "response_json": result
+            })
 
     def nilai_chat_completion(
         # pylint: disable=too-many-positional-arguments

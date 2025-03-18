@@ -7,13 +7,14 @@ import sys
 import json
 import argparse
 import time
+import asyncio
 from nilrag.nildb_requests import NilDB, Node
 
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
 DEFAULT_PROMPT = "Who is Danielle Miller?"
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description='Query nilDB with NilAI using nilRAG')
     parser.add_argument('--config', type=str, default=DEFAULT_CONFIG,
                       help=f'Path to nilDB config file (default: {DEFAULT_CONFIG})')
@@ -64,4 +65,4 @@ def main():
     print(f"Query took {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

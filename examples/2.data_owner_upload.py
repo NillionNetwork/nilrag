@@ -7,6 +7,7 @@ import json
 import sys
 import argparse
 import time
+import asyncio
 import nilql
 from nilrag.util import (
     create_chunks,
@@ -20,7 +21,7 @@ from nilrag.nildb_requests import NilDB, Node
 DEFAULT_CONFIG = "examples/nildb_config.json"
 DEFAULT_FILE_PATH = 'examples/data/20-fake.txt'
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description='Upload data to nilDB using nilRAG')
     parser.add_argument('--config', type=str, default=DEFAULT_CONFIG,
                       help=f'Path to nilDB config file (default: {DEFAULT_CONFIG})')
@@ -81,9 +82,9 @@ def main():
     # Upload encrypted data to nilDB
     print('Uploading data...')
     start_time = time.time()
-    nilDB.upload_data(embeddings_shares, chunks_shares)
+    await nilDB.upload_data(embeddings_shares, chunks_shares)
     end_time = time.time()
     print(f'Data uploaded in {end_time - start_time:.2f} seconds')
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
