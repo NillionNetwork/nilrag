@@ -507,18 +507,13 @@ class NilDB:
             for node_idx, node in enumerate(self.nodes):
                 batch_data = []
                 for batch_idx, doc_idx in enumerate(range(batch_start, batch_end)):
-                    # Use the pre-generated ID for this document
-                    data_id = doc_ids[batch_idx]
                     # Join the shares of one embedding in one vector for this node
-                    node_embedding_shares = [
-                        e[node_idx] for e in lst_embedding_shares[doc_idx]
-                    ]
-                    encoded_node_chunk_share = lst_chunk_shares[doc_idx][node_idx]
-
                     batch_data.append({
-                        "_id": data_id,
-                        "embedding": node_embedding_shares,
-                        "chunk": encoded_node_chunk_share,
+                        "_id":  doc_ids[batch_idx],
+                        "embedding": [
+                            e[node_idx] for e in lst_embedding_shares[doc_idx]
+                        ],
+                        "chunk": lst_chunk_shares[doc_idx][node_idx],
                     })
 
                 task = upload_to_node(node, batch_data)
