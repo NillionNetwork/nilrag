@@ -411,10 +411,13 @@ class NilDB:
         return chunk_shares
 
     async def upload_data(
-        self, lst_embedding_shares: list[list[int]], lst_chunk_shares: list[list[bytes]]
+        self,
+        lst_embedding_shares: list[list[int]],
+        lst_chunk_shares: list[list[bytes]],
+        batch_size: int = 100
     ):
         """
-        Upload embeddings and chunks to all nilDB nodes asynchronously.
+        Upload embeddings and chunks to all nilDB nodes asynchronously in batches.
 
         Args:
             lst_embedding_shares (list): List of embedding shares for each document,
@@ -439,6 +442,8 @@ class NilDB:
                     ],
                     # More documents...
                 ]
+            batch_size (int, optional): Number of documents to upload in each batch.
+                Defaults to 100.
 
         Example:
             >>> # Set up encryption keys for 3 nodes
@@ -454,8 +459,8 @@ class NilDB:
             >>> chunks_shares = [nilql.encrypt(xor_key, chunk) for chunk in chunks]
             >>> embeddings_shares = [encrypt_float_list(additive_key, emb) for emb in embeddings]
             >>>
-            >>> # Upload to nilDB nodes
-            >>> await nilDB.upload_data(embeddings_shares, chunks_shares)
+            >>> # Upload to nilDB nodes in batches of 100
+            >>> await nilDB.upload_data(embeddings_shares, chunks_shares, batch_size=100)
 
         Raises:
             AssertionError: If number of embeddings and chunks don't match
@@ -466,13 +471,8 @@ class NilDB:
             lst_chunk_shares
         ), f"Mismatch: {len(lst_embedding_shares)} embeddings vs {len(lst_chunk_shares)} chunks."
 
-        async def upload_to_node(
-            node: Node,
-            _node_index: int,  # pylint: disable=unused-argument
-            data_id: str,
-            embedding_shares: list[int],
-            chunk_share: bytes,
-        ):
+        async def upload_to_node(node: Node, batch_data: list[dict]):
+            """Upload a batch of data to a specific node."""
             url = node.url + "/data/create"
             headers = {
                 "Authorization": "Bearer " + str(node.bearer_token),
@@ -481,13 +481,7 @@ class NilDB:
 
             payload = {
                 "schema": node.schema_id,
-                "data": [
-                    {
-                        "_id": data_id,
-                        "embedding": embedding_shares,
-                        "chunk": chunk_share,
-                    }
-                ],
+                "data": batch_data,
             }
 
             async with aiohttp.ClientSession() as session:
@@ -499,32 +493,55 @@ class NilDB:
                         )
                     return await response.json()
 
-        # Create tasks for all uploads
-        tasks = []
-        for embedding_shares, chunk_shares in zip(
-            lst_embedding_shares, lst_chunk_shares
-        ):
-            data_id = str(uuid4())
-            for i, node in enumerate(self.nodes):
-                # Join the shares of one embedding in one vector
-                node_i_embedding_shares = [e[i] for e in embedding_shares]
-                encoded_node_i_chunk_share = chunk_shares[i]
+        async def process_batch(batch_start: int, batch_end: int) -> None:
+            """Process and upload a single batch of documents."""
+            print(
+                f"Processing batch {batch_start//batch_size + 1}: "
+                f"documents {batch_start} to {batch_end}"
+            )
 
-                task = upload_to_node(
-                    node,
-                    i,
-                    data_id,
-                    node_i_embedding_shares,
-                    encoded_node_i_chunk_share,
-                )
+            # Generate document IDs for this batch
+            doc_ids = [str(uuid4()) for _ in range(batch_start, batch_end)]
+
+            tasks = []
+            for node_idx, node in enumerate(self.nodes):
+                batch_data = []
+                for batch_idx, doc_idx in enumerate(range(batch_start, batch_end)):
+                    # Use the pre-generated ID for this document
+                    data_id = doc_ids[batch_idx]
+                    # Join the shares of one embedding in one vector for this node
+                    node_embedding_shares = [
+                        e[node_idx] for e in lst_embedding_shares[doc_idx]
+                    ]
+                    encoded_node_chunk_share = lst_chunk_shares[doc_idx][node_idx]
+
+                    batch_data.append({
+                        "_id": data_id,
+                        "embedding": node_embedding_shares,
+                        "chunk": encoded_node_chunk_share,
+                    })
+
+                task = upload_to_node(node, batch_data)
                 tasks.append(task)
 
-        # Execute all uploads in parallel
-        results = await asyncio.gather(*tasks)
+            try:
+                results = await asyncio.gather(*tasks)
+                print(f"Successfully uploaded batch {batch_start//batch_size + 1}")
+                for result in results:
+                    print({
+                        "status_code": 200,
+                        "message": "Success",
+                        "response_json": result
+                    })
+            except Exception as e:
+                print(f"Error uploading batch {batch_start//batch_size + 1}: {str(e)}")
+                raise
 
-        # Print results
-        for result in results:
-            print({"status_code": 200, "message": "Success", "response_json": result})
+        # Process data in batches
+        total_documents = len(lst_embedding_shares)
+        for batch_start in range(0, total_documents, batch_size):
+            batch_end = min(batch_start + batch_size, total_documents)
+            await process_batch(batch_start, batch_end)
 
     def nilai_chat_completion(
         self,
