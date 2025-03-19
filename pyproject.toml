@@ -1,6 +1,6 @@
 [project]
 name = "nilrag"
-version = "0.1.6"
+version = "0.1.7"
 description = "nilRAG SDK"
 authors = [
     { name = "Manuel Santos", email = "manuel.santos@nillion.com" },

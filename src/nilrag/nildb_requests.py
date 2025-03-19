@@ -171,7 +171,7 @@ class NilDB:
                         async with session.post(
                             url, headers=headers, json=payload, timeout=TIMEOUT
                         ) as response:
-                            if response.status != HTTPStatus.CREATED:
+                            if response.status not in [HTTPStatus.CREATED, HTTPStatus.OK]:
                                 error_text = await response.text()
                                 raise ValueError(
                                     f"Error in POST request: {response.status}, {error_text}"
@@ -255,7 +255,7 @@ class NilDB:
                         async with session.post(
                             url, headers=headers, json=payload, timeout=TIMEOUT
                         ) as response:
-                            if response.status != HTTPStatus.CREATED:
+                            if response.status not in [HTTPStatus.CREATED, HTTPStatus.OK]:
                                 error_text = await response.text()
                                 raise ValueError(
                                     f"Error in POST request: {response.status}, {error_text}"
