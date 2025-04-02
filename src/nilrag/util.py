@@ -7,6 +7,7 @@ from typing import Union
 import nilql
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from sklearn.cluster import KMeans
 
 
 # Load text from file
@@ -101,6 +102,32 @@ def find_closest_chunks(
     distances = [euclidean_distance(query_embedding, emb) for emb in embeddings]
     sorted_indices = np.argsort(distances)
     return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
+
+
+def compute_closest_centroid(
+    query_embedding: np.ndarray, centroids: list[int]
+) -> list[int]:
+    """
+    Find the closest centroid for a given query embedding.
+
+    Args:
+        query_embedding (np.ndarray): The embedding vector of the query in floating-point format
+        centroids (list): List of centroid vectors in fixed-point format
+
+    Returns:
+        int: The index of the closest centroid
+    """
+    # Convert query embedding to fixed-point for comparison
+    query_embedding_fixed = [to_fixed_point(val) for val in query_embedding]
+
+    # Find closest centroid
+    # closest_centroid_idx = None
+    closest_centroid_idx = min(
+        range(len(centroids)),
+        key=lambda i: euclidean_distance(query_embedding_fixed, centroids[i]),
+    )
+
+    return centroids[closest_centroid_idx]
 
 
 def group_shares_by_id(shares_per_party: list, transform_share_fn: callable):
@@ -208,3 +235,32 @@ def decrypt_string_list(sk, lst: list) -> list:
         list: List of decrypted strings
     """
     return [nilql.decrypt(sk, l) for l in lst]
+
+
+def cluster_embeddings(embeddings: np.ndarray, num_clusters: int):
+    """
+    Cluster the given embeddings using K-Means.
+
+    Args:
+        embeddings (list of list of float): The embeddings to cluster.
+        num_clusters (int): The number of clusters to form.
+
+    Returns:
+        tuple: (labels, centroids)
+    """
+    print("Starting clustering process:")
+    print(f"Number of embeddings: {len(embeddings)}")
+    print(f"Requested number of clusters: {num_clusters}")
+
+    embeddings_array = np.array(embeddings)  # Convert to NumPy array
+    kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(embeddings_array)
+    centroids = kmeans.cluster_centers_
+
+    print("Cluster sizes:")
+    for i in range(num_clusters):
+        print(f"Cluster {i}: {np.sum(labels == i)} documents")
+    # Convert each centroid to fixed-point
+    centroids = [[to_fixed_point(val) for val in centroid] for centroid in centroids]
+    print("Clustering completed!")
+    return labels, centroids
