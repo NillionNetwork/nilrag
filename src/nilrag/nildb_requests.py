@@ -52,6 +52,7 @@ class Node:  # pylint: disable=too-few-public-methods
         bearer_token (str): Authentication token for API requests
         schema_id (str, optional): ID of the schema associated with this node
         diff_query_id (str, optional): ID of the differences query for this node
+        clusters_schema_id (str, optional): ID of the schema of clusters associated with this node
     """
 
     def __init__(
@@ -62,6 +63,7 @@ class Node:  # pylint: disable=too-few-public-methods
         bearer_token: Optional[str] = None,
         schema_id: Optional[str] = None,
         diff_query_id: Optional[str] = None,
+        clusters_schema_id: Optional[str] = None,
         # pylint: disable=too-many-arguments
         # pylint: disable=too-many-positional-arguments
     ):
@@ -74,6 +76,7 @@ class Node:  # pylint: disable=too-few-public-methods
             bearer_token (str): Authentication token
             schema_id (str, optional): Associated schema ID
             diff_query_id (str, optional): Associated differences query ID
+            clusters_schema_id (str, optional): Associated clusters' schema ID
         """
         self.url = url[:-1] if url.endswith("/") else url
         self.node_id = node_id
@@ -81,6 +84,7 @@ class Node:  # pylint: disable=too-few-public-methods
         self.bearer_token = bearer_token
         self.schema_id = schema_id
         self.diff_query_id = diff_query_id
+        self.clusters_schema_id = clusters_schema_id
 
     def __repr__(self):
         """
@@ -94,7 +98,8 @@ class Node:  # pylint: disable=too-few-public-methods
             \n  org: {self.org}\
             \n  Bearer Token: {self.bearer_token}\
             \n  Schema ID: {self.schema_id}\
-            \n  Differences Query ID: {self.diff_query_id}"
+            \n  Differences Query ID: {self.diff_query_id}\
+            \n  Clusters' Schema ID: {self.clusters_schema_id}"
 
 
 class NilDB:
@@ -154,6 +159,11 @@ class NilDB:
                         "type": "object",
                         "properties": {
                             "_id": {"type": "string", "format": "uuid", "coerce": True},
+                            "cluster_centroid": {
+                                "description": "Embedding of the clusters' centroid",
+                                "type": "array",
+                                "items": {"type": "integer"}
+                            },
                             "embedding": {
                                 "description": "Chunks embeddings",
                                 "type": "array",
@@ -199,6 +209,75 @@ class NilDB:
         print(f"Schema {schema_id} created successfully.")
         return schema_id
 
+    async def init_clusters_schema(self):
+        """
+        Initialize the clusters' schema across all nodes asynchronously.
+
+        Creates a clusters' schema for storing clusters' centroids embeddings
+        associated to a common schema ID.
+        The cluster schema defines the structure for storing the 
+        embeddings of cluster centroids.
+
+        Raises:
+            ValueError: If clusters' schema creation fails on any nilDB node
+        """
+        clusters_schema_id = str(uuid4())
+
+        async def create_clusters_schema_for_node(node: Node) -> None:
+            url = node.url + "/schemas"
+            headers = {
+                "Authorization": "Bearer " + str(node.bearer_token),
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "_id": clusters_schema_id,
+                "name": "Clusters' centroids",
+                "schema": {
+                    "$schema": "http://json-schema.org/draft-07/schema#",
+                    "title": "CLUSTERS CENTROIDS",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "_id": {"type": "string", "format": "uuid", "coerce": True},
+                            "cluster_centroid": {
+                                "description": "Embedding of the clusters centroid",
+                                "type": "array",
+                                "items": {"type": "integer"}
+                            },
+                        },
+                        "required": ["_id", "cluster_centroid"],
+                        "additionalProperties": False,
+                    },
+                },
+            }
+
+            for attempt in range(MAX_RETRIES):
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(
+                            url, headers=headers, json=payload, timeout=TIMEOUT
+                        ) as response:
+                            if response.status not in [HTTPStatus.CREATED, HTTPStatus.OK]:
+                                error_text = await response.text()
+                                raise ValueError(
+                                    f"Error in POST request: {response.status}, {error_text}"
+                                )
+                            node.clusters_schema_id = clusters_schema_id
+                            return
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    if attempt == MAX_RETRIES - 1:
+                        raise ValueError(
+                            f"Failed to create clusters schema after {MAX_RETRIES} attempts: {str(e)}"
+                        ) from e
+                    await asyncio.sleep(RETRY_DELAY * (attempt + 1))
+
+        # Create schema on all nodes in parallel
+        tasks = [create_clusters_schema_for_node(node) for node in self.nodes]
+        await asyncio.gather(*tasks)
+        print(f"Clusters' Schema {clusters_schema_id} created successfully.")
+        return clusters_schema_id
+    
     async def init_diff_query(self):
         """
         Initialize the difference query across all nilDB nodes asynchronously.
