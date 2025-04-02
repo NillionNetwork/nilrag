@@ -11,6 +11,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.11.14",
+    "dotenv>=0.9.9",
     "ecdsa>=0.19.0",
     "faker>=37.0.0",
     "nilql==0.0.0a12",
