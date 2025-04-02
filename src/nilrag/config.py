@@ -15,6 +15,7 @@ def load_nil_db_config(
     require_bearer_token: bool = False,
     require_schema_id: bool = False,
     require_diff_query_id: bool = False,
+    require_clusters_schema_id: bool = False,
 ) -> Tuple[NilDB, Optional[str]]:
     """
     Load nilDB configuration from JSON file.
@@ -25,6 +26,7 @@ def load_nil_db_config(
         require_bearer_token: Whether to require bearer_token in node data
         require_schema_id: Whether to require schema_id in node data
         require_diff_query_id: Whether to require diff_query_id in node data
+        require_clusters_schema_id: Whether to require clusters_schema_id in node data
 
     Returns:
         tuple: (NilDB instance, secret_key if required)
@@ -64,6 +66,8 @@ def load_nil_db_config(
             raise ValueError("Error: schema_id not found in node data")
         if require_diff_query_id and "diff_query_id" not in node_data:
             raise ValueError("Error: diff_query_id not found in node data")
+        if require_clusters_schema_id and "clusters_schema_id" not in node_data:
+            raise ValueError("Error: clusters_schema_id not found in node data")
 
         # Create node with all available fields
         node = Node(
@@ -73,6 +77,7 @@ def load_nil_db_config(
             bearer_token=node_data.get("bearer_token"),
             schema_id=node_data.get("schema_id"),
             diff_query_id=node_data.get("diff_query_id"),
+            clusters_schema_id=node_data.get("clusters_schema_id"),
         )
         nodes.append(node)
 

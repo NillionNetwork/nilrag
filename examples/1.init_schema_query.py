@@ -47,6 +47,12 @@ async def main():
     end_time = time.time()
     print(f"Schema initialized successfully in {end_time - start_time:.2f} seconds")
 
+    print("Initializing clusters' schema...")
+    start_time = time.time()
+    clusters_schema_id = await nil_db.init_clusters_schema()
+    end_time = time.time()
+    print(f"Clusters' schema initialized successfully in {end_time - start_time:.2f} seconds")
+
     print("Initializing query...")
     start_time = time.time()
     diff_query_id = await nil_db.init_diff_query()
@@ -59,6 +65,7 @@ async def main():
     for node_data, jwt in zip(data["nodes"], jwts):
         node_data["schema_id"] = schema_id
         node_data["diff_query_id"] = diff_query_id
+        node_data["clusters_schema_id"] = clusters_schema_id
         node_data["bearer_token"] = jwt
     with open(args.config, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
