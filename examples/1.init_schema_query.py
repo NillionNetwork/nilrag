@@ -35,12 +35,23 @@ async def main():
     args = parser.parse_args()
 
     # Load NilDB configuration
+    print("Loading nilDB config...")
+    start_time = time.time()
     nil_db, secret_key = load_nil_db_config(
         args.config, require_secret_key=True
     )
-    jwts = nil_db.generate_jwt(secret_key, ttl=3600)
+    end_time = time.time()
+    print(f"Config loaded successfully in {end_time - start_time:.2f} seconds")
+    print()
     print(nil_db)
     print()
+
+    # Generate tokens
+    print("Generating JWTs...")
+    start_time = time.time()
+    jwts = nil_db.generate_jwt(secret_key, ttl=3600)
+    end_time = time.time()
+    print(f"JWTs generated successfully in {end_time - start_time:.2f} seconds")
 
     # Upload encrypted data to nilDB
     print("Initializing schema...")

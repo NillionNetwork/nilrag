@@ -40,16 +40,21 @@ async def main():
     args = parser.parse_args()
 
     # Load NilDB configuration
+    print("Loading nilDB config...")
+    start_time = time.time()
     nil_db, _ = load_nil_db_config(
         args.config,
         require_bearer_token=True,
         require_schema_id=True,
         require_diff_query_id=True,
     )
+    end_time = time.time()
+    print(f"Config loaded successfully in {end_time - start_time:.2f} seconds")
+    print()
     print(nil_db)
     print()
 
-    print("Query nilAI with nilRAG...")
+    print("Querying nilAI with nilRAG...")
     start_time = time.time()
     config = ChatCompletionConfig(
         nilai_url="https://nilai-a779.nillion.network",

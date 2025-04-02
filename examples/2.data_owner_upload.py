@@ -43,15 +43,22 @@ async def main():
     args = parser.parse_args()
 
     # Load NilDB configuration
+    print("Loading nilDB config...")
+    start_time = time.time()
     nil_db, _ = load_nil_db_config(
         args.config,
         require_bearer_token=True,
         require_schema_id=True,
     )
+    end_time = time.time()
+    print(f"Config loaded successfully in {end_time - start_time:.2f} seconds")
+    print()
     print(nil_db)
     print()
 
     # Initialize secret keys for different modes of operation
+    print("Generating cluster keys...")
+    start_time = time.time()
     num_nodes = len(nil_db.nodes)
     additive_key = nilql.ClusterKey.generate(
         {"nodes": [{}] * num_nodes}, {"sum": True}
@@ -59,17 +66,23 @@ async def main():
     xor_key = nilql.ClusterKey.generate(
         {"nodes": [{}] * num_nodes}, {"store": True}
     )
+    end_time = time.time()
+    print(f"Cluster keys generated successfully in {end_time - start_time:.2f} seconds")
 
     # Load and process input file
+    print("Loading and chunking input file...")
+    start_time = time.time()
     paragraphs = load_file(args.file)
     chunks = create_chunks(paragraphs, chunk_size=50, overlap=10)
+    end_time = time.time()
+    print(f"Input file chunked successfully in {end_time - start_time:.2f} seconds")
 
     # Generate embeddings and chunks
-    print("Generating embeddings and chunks...")
+    print("Generating embeddings...")
     start_time = time.time()
     embeddings = generate_embeddings_huggingface(chunks)
     end_time = time.time()
-    print(f"Embeddings and chunks generated in {end_time - start_time:.2f} seconds!")
+    print(f"Embeddings generated in {end_time - start_time:.2f} seconds!")
 
     # Encrypt chunks and embeddings
     print("Encrypting data...")
