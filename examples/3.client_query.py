@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import time
+import os
 
 from nilrag.config import load_nil_db_config
 from nilrag.nildb_requests import ChatCompletionConfig
@@ -40,7 +41,6 @@ async def main():
     args = parser.parse_args()
 
     # Load NilDB configuration
-    print("Loading nilDB config...")
     start_time = time.time()
     nil_db, _ = load_nil_db_config(
         args.config,
@@ -50,17 +50,20 @@ async def main():
     )
     end_time = time.time()
     print(f"Config loaded successfully in {end_time - start_time:.2f} seconds")
-    print()
     print(nil_db)
     print()
 
     print("Using prompt:", args.prompt)
+    token = os.getenv("NILAI_API_KEY")
+
+    if not token:
+        raise ValueError("No NILAI_API_KEY supplied")
 
     print("Querying nilAI with nilRAG...")
     start_time = time.time()
     config = ChatCompletionConfig(
         nilai_url="https://nilai-a779.nillion.network",
-        token="Nillion2025",
+        token=token,
         messages=[{"role": "user", "content": args.prompt}],
         model="meta-llama/Llama-3.1-8B-Instruct",
         temperature=0.2,
