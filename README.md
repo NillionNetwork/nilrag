@@ -170,3 +170,14 @@ uv run examples/3.client_query.py --config /path/to/config.json --prompt "Your c
 # Run a specific test file
 uv run -m unittest test.rag
 ```
+
+## Note
+
+When querying nilRAG on data which is public knowledge, it is not always evident if the answer
+you get back comes from the RAG itself or from the model's general knowledge. For example, if
+you query the nilRAG which uses the provided `examples/data/20-fake.txt` dataset about a famous
+person, it will reply with details of the famous person even though that data is not present in
+the `examples/data/20-fake.txt` dataset. This is easily fixed by using a prompt which includes an
+instruction like:
+
+> If you don't know, just say you don't know.
