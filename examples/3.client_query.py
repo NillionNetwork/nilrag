@@ -54,6 +54,8 @@ async def main():
     print(nil_db)
     print()
 
+    print("Using prompt:", args.prompt)
+
     print("Querying nilAI with nilRAG...")
     start_time = time.time()
     config = ChatCompletionConfig(
