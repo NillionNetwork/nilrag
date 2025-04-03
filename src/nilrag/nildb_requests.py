@@ -507,6 +507,8 @@ class NilDB:
         lst_embedding_shares: list[list[int]],
         lst_chunk_shares: list[list[bytes]],
         batch_size: int = 100,
+        labels: list[int] | None = None,
+        centroids: list[int] | None = None,
     ) -> None:
         """
         Upload embeddings and chunks to all nilDB nodes asynchronously in batches.
@@ -563,6 +565,16 @@ class NilDB:
             lst_chunk_shares
         ), f"Mismatch: {len(lst_embedding_shares)} embeddings vs {len(lst_chunk_shares)} chunks."
 
+        # Check that the number of labels of each cluster matches the number of embeddings, if labels are provided
+        if labels is not None:
+            assert len(labels) == len(
+                lst_embedding_shares
+            ), f"Mismatch: {len(labels)} labels vs {len(lst_embedding_shares)} embeddings."
+        
+        # Check that the number of centroids is correct if provided
+        if centroids is not None:
+            assert len(centroids) > 1, "Centroids must be provided when clustering is enabled."
+
         async def upload_to_node(node: Node, batch_data: list[dict]):
             """Upload a batch of data to a specific node."""
             url = node.url + "/data/create"
@@ -600,15 +612,20 @@ class NilDB:
                 batch_data = []
                 for batch_idx, doc_idx in enumerate(range(batch_start, batch_end)):
                     # Join the shares of one embedding in one vector for this node
-                    batch_data.append(
-                        {
-                            "_id": doc_ids[batch_idx],
-                            "embedding": [
-                                e[node_idx] for e in lst_embedding_shares[doc_idx]
-                            ],
-                            "chunk": lst_chunk_shares[doc_idx][node_idx],
-                        }
-                    )
+                    batch_entry = {
+                        "_id":  doc_ids[batch_idx],
+                        "embedding": [
+                            e[node_idx] for e in lst_embedding_shares[doc_idx]
+                        ],
+                        "chunk": lst_chunk_shares[doc_idx][node_idx],
+                    }
+                    # Join the clusters centroid of the corresponding embedding in case clustering is performed
+                    if labels is not None and centroids is not None and len(centroids) > 1 :
+                        centroid_idx = labels[doc_idx]
+                        centroid = centroids[centroid_idx]
+                        batch_entry["cluster_centroid"] = centroid
+                    # Add this entry to the batch data
+                    batch_data.append(batch_entry)
 
                 task = upload_to_node(node, batch_data)
                 tasks.append(task)
