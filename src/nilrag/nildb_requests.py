@@ -597,6 +597,28 @@ class NilDB:
                         )
                     return await response.json()
 
+        async def upload_centroids_to_node(node: Node, centroids_data: list[int]):
+            """Upload centroids to the clusters schema."""
+            url = node.url + "/data/create"
+            headers = {
+                "Authorization": "Bearer " + str(node.bearer_token),
+                "Content-Type": "application/json",
+            }
+
+            payload = {
+                "schema": node.clusters_schema_id,
+                "data": centroids_data,
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=payload) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise ValueError(
+                            f"Error in POST request: {response.status}, {error_text}"
+                        )
+                    return await response.json()
+
         async def process_batch(batch_start: int, batch_end: int) -> None:
             """Process and upload a single batch of documents."""
             print(
@@ -650,6 +672,35 @@ class NilDB:
         for batch_start in range(0, total_documents, batch_size):
             batch_end = min(batch_start + batch_size, total_documents)
             await process_batch(batch_start, batch_end)
+        # After processing all batches, upload centroids if they exist
+        if centroids is not None and len(centroids) > 1:
+            print("Uploading centroids to clusters schema...")
+            centroid_ids = [str(uuid4()) for _ in centroids]
+            
+            tasks = []
+            for node_idx, node in enumerate(self.nodes):
+                centroids_data = []
+                for centroid_idx, centroid in enumerate(centroids):
+                    centroids_data.append({
+                        "_id": centroid_ids[centroid_idx],
+                        "cluster_centroid": centroid
+                    })
+                
+                task = upload_centroids_to_node(node, centroids_data)
+                tasks.append(task)
+
+            try:
+                results = await asyncio.gather(*tasks)
+                print("Successfully uploaded centroids")
+                for result in results:
+                    print({
+                        "status_code": 200,
+                        "message": "Success",
+                        "response_json": result
+                    })
+            except Exception as e:
+                print(f"Error uploading centroids: {str(e)}")
+                raise
 
     # pylint: disable=too-many-locals
     async def top_num_chunks_execute(self, query: str, num_chunks: int) -> List:
