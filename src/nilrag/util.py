@@ -7,6 +7,7 @@ from typing import Union
 import nilql
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from sklearn.cluster import KMeans
 
 
 # Load text from file
@@ -208,3 +209,25 @@ def decrypt_string_list(sk, lst: list) -> list:
         list: List of decrypted strings
     """
     return [nilql.decrypt(sk, l) for l in lst]
+
+def cluster_embeddings(embeddings: np.ndarray, num_clusters: int):
+    """
+    Cluster the given embeddings using K-Means.
+    
+    Args:
+        embeddings (list of list of float): The embeddings to cluster.
+        num_clusters (int): The number of clusters to form.
+    
+    Returns:
+        tuple: (labels, centroids)
+    """
+    print(f"Clustering data into {num_clusters} clusters...")
+
+    embeddings_array = np.array(embeddings)  # Convert to NumPy array
+    kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(embeddings_array)
+    centroids = kmeans.cluster_centers_
+    # Convert each centroid to fixed-point
+    centroids = [ [to_fixed_point(val) for val in centroid] for centroid in centroids ]
+    print("Clustering completed!")
+    return labels, centroids
