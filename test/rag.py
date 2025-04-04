@@ -3,6 +3,7 @@ Test suite containing functional unit tests of exported functions.
 """
 
 import json
+import os
 import time
 import unittest
 from dataclasses import dataclass
@@ -10,11 +11,13 @@ from typing import List, Tuple
 
 import nilql
 import numpy as np
+from dotenv import load_dotenv
 
-from src.nilrag.config import load_nil_db_config
-from src.nilrag.util import (create_chunks, decrypt_float_list,
-                             encrypt_float_list, find_closest_chunks,
-                             generate_embeddings_huggingface, load_file)
+from nilrag.nildb.org_config import ORG_CONFIG
+from nilrag.rag_vault import RAGVault, find_closest_chunks
+from nilrag.utils.process import (create_chunks,
+                                  generate_embeddings_huggingface, load_file)
+from nilrag.utils.transform import decrypt_float_list, encrypt_float_list
 
 DEFAULT_CONFIG = "test/nildb_config.json"
 DEFAULT_PROMPT = "Who is Michelle Ross?"
@@ -282,20 +285,26 @@ class TestRAGMethods(unittest.IsolatedAsyncioTestCase):
         Test the RAG method with nilDB.
         """
 
-        # Load NilDB configuration
-        nil_db, _ = load_nil_db_config(
-            DEFAULT_CONFIG,
-            require_bearer_token=True,
-            require_schema_id=True,
-            require_diff_query_id=True,
+        # Load environment variables
+        load_dotenv(override=True)
+
+        schema_id = os.getenv("SCHEMA_ID")
+        clusters_schema_id = os.getenv("CLUSTERS_SCHEMA_ID")
+        subtract_query_id = os.getenv("QUERY_ID")
+
+        # Initialize vault with clustering enabled
+        rag = await RAGVault.create(
+            ORG_CONFIG["nodes"],
+            ORG_CONFIG["org_credentials"],
+            schema_id=schema_id,
+            clusters_schema_id=clusters_schema_id,
+            subtract_query_id=subtract_query_id,
         )
-        print(nil_db)
-        print()
 
         print("Perform nilRAG...")
         start_time = time.time()
         query = DEFAULT_PROMPT
-        top_chunks = await nil_db.top_num_chunks_execute(query, 2)
+        top_chunks = await rag.top_num_chunks_execute(query, 2)
         end_time = time.time()
         print(json.dumps(top_chunks, indent=4))
         print(f"Query took {end_time - start_time:.2f} seconds")

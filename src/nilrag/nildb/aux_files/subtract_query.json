@@ -1,0 +1,52 @@
+{
+    "variables": {
+        "query_embedding": {
+            "description": "The query embedding",
+            "type": "array",
+            "items": {
+                "type": "number"
+            }
+        }
+    },
+    "pipeline": [
+        {
+            "$addFields": {
+                "query_embedding": "##query_embedding"
+            }
+        },
+        {
+            "$project": {
+                "_id": 1,
+                "difference": {
+                    "$map": {
+                        "input": {
+                            "$zip": {
+                                "inputs": [
+                                    "$embedding",
+                                    "$query_embedding"
+                                ]
+                            }
+                        },
+                        "as": "pair",
+                        "in": {
+                            "$subtract": [
+                                {
+                                    "$arrayElemAt": [
+                                        "$$pair",
+                                        0
+                                    ]
+                                },
+                                {
+                                    "$arrayElemAt": [
+                                        "$$pair",
+                                        1
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

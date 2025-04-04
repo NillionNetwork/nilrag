@@ -1,0 +1,27 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "CLUSTERS CENTROIDS",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "_id": {
+                "type": "string",
+                "format": "uuid",
+                "coerce": true
+            },
+            "cluster_centroid": {
+                "description": "Embedding of the clusters centroid",
+                "type": "array",
+                "items": {
+                    "type": "integer"
+                }
+            }
+        },
+        "required": [
+            "_id",
+            "cluster_centroid"
+        ],
+        "additionalProperties": false
+    }
+}

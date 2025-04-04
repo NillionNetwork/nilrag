@@ -1,23 +1,24 @@
 """
-Example of querying nilDB with NilAI using nilRAG.
+Example of querying NilAI endpoint using nilRAG.
 """
 
 import argparse
 import asyncio
 import json
+import os
 import time
 
-from nilrag.config import load_nil_db_config
-from nilrag.nildb_requests import ChatCompletionConfig
+from dotenv import load_dotenv
 
-DEFAULT_CONFIG = "examples/nildb_config.json"
-DEFAULT_PROMPT = "Who is Michelle Ross?"
-DEFAULT_FAKE_QUERIES = 0
+from nilrag.nildb.org_config import ORG_CONFIG
+from nilrag.rag_vault import ChatCompletionConfig, RAGVault
+
+DEFAULT_PROMPT = "Who is Danielle Miller?"
 
 
 async def main():
     """
-    Query nilDB with NilAI using nilRAG.
+    Query NilAI endpoint using nilRAG.
 
     This script:
     1. Loads the nilDB configuration
@@ -25,13 +26,7 @@ async def main():
     3. Sends the query to nilAI with nilRAG
     4. Displays the response and timing information
     """
-    parser = argparse.ArgumentParser(description="Query nilDB with NilAI using nilRAG")
-    parser.add_argument(
-        "--config",
-        type=str,
-        default=DEFAULT_CONFIG,
-        help=f"Path to nilDB config file (default: {DEFAULT_CONFIG})",
-    )
+    parser = argparse.ArgumentParser(description="Query NilAI endpoint using nilRAG")
     parser.add_argument(
         "--prompt",
         type=str,
@@ -40,17 +35,21 @@ async def main():
     )
     args = parser.parse_args()
 
-    # Load NilDB configuration
-    nil_db, _ = load_nil_db_config(
-        args.config,
-        require_bearer_token=True,
-        require_schema_id=True,
-        require_diff_query_id=True,
-        require_clusters_schema_id=True,
-        require_cluster_diff_query_id=True,
+    # Load environment variables
+    load_dotenv(override=True)
+
+    schema_id = os.getenv("SCHEMA_ID")
+    clusters_schema_id = os.getenv("CLUSTERS_SCHEMA_ID")
+    subtract_query_id = os.getenv("QUERY_ID")
+
+    # Initialize vault with clustering enabled
+    rag = await RAGVault.create(
+        ORG_CONFIG["nodes"],
+        ORG_CONFIG["org_credentials"],
+        schema_id=schema_id,
+        clusters_schema_id=clusters_schema_id,
+        subtract_query_id=subtract_query_id,
     )
-    print(nil_db)
-    print()
 
     print("Query nilAI with nilRAG...")
     start_time = time.time()
@@ -63,7 +62,7 @@ async def main():
         max_tokens=2048,
         stream=False,
     )
-    response = nil_db.nilai_chat_completion(config)
+    response = rag.nilai_chat_completion(config)
     end_time = time.time()
     print(json.dumps(response, indent=4))
     print(f"Query took {end_time - start_time:.2f} seconds")

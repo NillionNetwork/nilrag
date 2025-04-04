@@ -506,6 +506,15 @@ wheels = [
 ]
 
 [[package]]
+name = "lagrange"
+version = "3.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/9d/4b6470fd6769b0943fbda9b30e2068bb8d9940be2977b1e80a184d527fa6/lagrange-3.0.1.tar.gz", hash = "sha256:272f352a676679ee318b0b302054f667f23afb73d10063cd3926c612527e09f1", size = 6894 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3e/d8/f1c3ff60a8b3e114cfb3e9eed75140d2a3e1e766791cfe2f210a5c736d61/lagrange-3.0.1-py3-none-any.whl", hash = "sha256:d473913d901f0c257456c505e4a94450f2e4a2f147460a68ad0cfb9ea33a6d0a", size = 6905 },
+]
+
+[[package]]
 name = "markupsafe"
 version = "3.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -660,15 +669,16 @@ wheels = [
 
 [[package]]
 name = "nilql"
-version = "0.0.0a12"
+version = "0.0.0a13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bcl" },
+    { name = "lagrange" },
     { name = "pailliers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/65/99/2d5f7afeca86b18f5ff16c41f17f31ad49e4029d18f6701b0bd12c33b4b5/nilql-0.0.0a12.tar.gz", hash = "sha256:6bd98ec270f06178439875e3251888fe52759bd309ba3639d4c0562e48a12cd8", size = 16789 }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/67/59f4b6ceac7c7719e4830a8f017d7d289b48da20dc2791f55ba3d2968bbb/nilql-0.0.0a13.tar.gz", hash = "sha256:cb0011ff704001c83209a3185d89a8b0a16cec8089551469b5c19d52659dd359", size = 19329 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f1/57/1b139377602211911fe03dd650bb6b955acc1a520669636d8e909d288eef/nilql-0.0.0a12-py3-none-any.whl", hash = "sha256:400b705fa1d9856093f47811062162e6fc8e1d4de8cf1861b2a40aaf78357989", size = 12175 },
+    { url = "https://files.pythonhosted.org/packages/13/b0/8b8641ddd3d40aaee0fccb3a167d7ee31f0021c93c93c0a19ddc50942d9a/nilql-0.0.0a13-py3-none-any.whl", hash = "sha256:f369a0530340ef890d9916d748147c0c54eb8a1b9f79dd6f3124c546ec39d9f3", size = 13826 },
 ]
 
 [[package]]
@@ -682,6 +692,7 @@ dependencies = [
     { name = "nilql" },
     { name = "numpy" },
     { name = "pyjwt", extra = ["crypto"] },
+    { name = "secretvaults" },
     { name = "sentence-transformers" },
 ]
 
@@ -697,9 +708,10 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.11.14" },
     { name = "ecdsa", specifier = ">=0.19.0" },
     { name = "faker", specifier = ">=37.0.0" },
-    { name = "nilql", specifier = "==0.0.0a12" },
+    { name = "nilql", specifier = "==0.0.0a13" },
     { name = "numpy", specifier = "<2.0.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = "~=2.10.1" },
+    { name = "secretvaults", specifier = "==0.0.0a10" },
     { name = "sentence-transformers", specifier = ">=3.3.1" },
 ]
 
@@ -1048,6 +1060,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-dotenv"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bc/57/e84d88dfe0aec03b7a2d4327012c1627ab5f03652216c63d49846d7a6c58/python-dotenv-1.0.1.tar.gz", hash = "sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca", size = 39115 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/3e/b68c118422ec867fa7ab88444e1274aa40681c606d59ac27de5a5588f082/python_dotenv-1.0.1-py3-none-any.whl", hash = "sha256:f7b63ef50f1b690dddf550d03497b66d609393b40b564ed0d674909a68ebf16a", size = 19863 },
+]
+
+[[package]]
 name = "pyyaml"
 version = "6.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1267,6 +1288,23 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/56/46/2449e6e51e0d7c3575f289f6acb7f828938eaab8874dbccfeb0cd2b71a27/scipy-1.14.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5149e3fd2d686e42144a093b206aef01932a0059c2a33ddfa67f5f035bdfe13e", size = 40798288 },
     { url = "https://files.pythonhosted.org/packages/32/cd/9d86f7ed7f4497c9fd3e39f8918dd93d9f647ba80d7e34e4946c0c2d1a7c/scipy-1.14.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:e4f5a7c49323533f9103d4dacf4e4f07078f360743dec7f7596949149efeec06", size = 42524647 },
     { url = "https://files.pythonhosted.org/packages/f5/1b/6ee032251bf4cdb0cc50059374e86a9f076308c1512b61c4e003e241efb7/scipy-1.14.1-cp313-cp313-win_amd64.whl", hash = "sha256:baff393942b550823bfce952bb62270ee17504d02a1801d7fd0719534dfb9c84", size = 44469524 },
+]
+
+[[package]]
+name = "secretvaults"
+version = "0.0.0a10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "ecdsa" },
+    { name = "nilql" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "python-dotenv" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/12/7f/94bdeba085665d227537c53d330802d83e4db7dce58bdf244fcc5a6fc933/secretvaults-0.0.0a10.tar.gz", hash = "sha256:789c2112694e8aed59f3f0d005bf3c4ba7de1e4e47c2de8d9a06979f470fcbfd", size = 20250 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/28/3f/4b9675212e23eca19473132061f18f525efc57a0e5a205d3cbc7b5d5096f/secretvaults-0.0.0a10-py3-none-any.whl", hash = "sha256:548aa22913904b06d2c61aa615d025b13d0d9b3661ea8a71215567a29cee44a1", size = 14030 },
 ]
 
 [[package]]

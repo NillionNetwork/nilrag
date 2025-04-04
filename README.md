@@ -43,14 +43,13 @@ corresponding embeddings:
 
     Once the files are encoded into chunks and embeddings, they are blinded before being uploaded to the NilDB, where each chunk and embedding is secret-shared.
 
-2) **Client:** Issues a query q A client submits a query q to search against the
-data owners' files stored in NilDB and perform RAG (retrieve the most relevant
-data and use the top-k results for privacy-preserving machine learning (PPML)
-inference).
+2) **Client:** A client submits a query q to search against the
+data owners' files stored in NilDB and perform RAG (retrieve the most relevant data and use the top-k results for privacy-preserving machine learning (PPML) inference).
 
     Similar to the data encoding by data owners, the query is processed into its corresponding embeddings:
 
 3) **NilDB:** Secure Storage and Query Handling
+
     NilDB stores the blinded chunks and embeddings provided by data owners. When a client submits a query, NilDB computes the differences between the query's embeddings and each stored embedding in a privacy-preserving manner:
     ```python
     differences = [embedding - query for embedding in embeddings]
@@ -60,8 +59,10 @@ inference).
     - The number of differences (N) corresponds to the number of chunks uploaded by the data owners.
     - For secret-sharing-based NilDB, the computation is performed on the shares.
 
-4) **nilAI:** Secure Processing and Retrieval The nilTEE performs the following
-steps:
+4) **nilAI:** Secure Processing and Retrieval 
+
+    The nilTEE performs the following steps:
+
     1. Retrieve and Reveal Differences: Connect to NilDB to fetch the blinded
        differences and then reveal the differences by reconstructing shares.
 
@@ -76,9 +77,9 @@ steps:
         ```
 
     3. Fetch Relevant Chunks: Request NilDB to retrieve the blinded chunks
-       corresponding to the `top_k_indices`.
+       corresponding to the `top_num_chunks_ids`.
 
-    4. Prepare for Inference: Combine the retrieved `top_k_chunks` with the
+    4. Prepare for Inference: Combine the retrieved `top_num_chunks_ids` with the
        original query. Use the data with an LLM inside the nilTEE for secure
        inference.
 
@@ -104,76 +105,75 @@ pip install nilrag
 
 ## Data owner
 
-### 1. Initialization
-First, copy the sample nilDB config file:
-```shell
-cp ./examples/nildb_config.sample.json ./examples/nildb_config.json
-```
-Next, register a new organization in Nillion's [SecretVault Registration
-Portal](https://sv-sda-registration.replit.app/) and fill in the details in your
-nilDB config file `./examples/nildb_config.json`.
+### Initialization
 
-You can safely ignore `bearer_token`, `schema_id`, and `diff_query_id` as we'll
-fill these out later.
+First follow these three steps:
+- Register a new organization in Nillion's [SecretVault Registration
+Portal](https://sv-sda-registration.replit.app/).
+- After you get your nilDB credentials, copy `.env.sample` to `.env` and store your credentials.
+- **Note for Data Owners:** If you haven't configured your schemas yet, you can safely disregard the following: `SCHEMA_ID`, `CLUSTERS_SCHEMA_ID`, and `QUERY_ID`.
 
-You are all set to create your first schema and query for RAG. At the minimum,
+You are now ready to create your initial schema and query template for RAG. The data owner has the option to use clustering, which involves a trade-off between speed and accuracy. At a minimum,
 they should look like:
 1. `schema`: which is the structure of the data that the data owner will store.
     In this case each entry has a `chunk` (`string`), an `embedding` (`vector<integer>`)
     and, optionally, the `cluster_centroid` (`vector<integer>`) where
     the `embedding` belongs. Each data owner will upload multiple `chunk`s
     and `embedding`s, and optionally, `cluster_centroid`s.
-2. `query`: This is the nilDB query that will compute the differences under
-    MPC between the stored data owner embeddings and the client's embedding.
-3. `clusters_schema`: is a structure of data for the data owner store 
+2. `query`: A nilDB query that securely computes, via MPC, the difference between the data
+    owner's  stored embeddings and the client's embedding. When clustering is enabled, a variant of this query filters by `cluster_centroid` to minimize data transfer.
+3. `clusters_schema`: This is a data structure where the data owner stores 
     `cluster_centroid`s when clustering is performed.
-    Each data owner will, optionally, upload multiple `cluster_centroid`s.
-4. `cluster_query`: This is the nilDB query that will compute the differences under
-    MPC between the stored data owner embeddings filtered by `cluster_centroid`
-    and the client's embedding.
+    Each data owner may choose to upload multiple `cluster_centroid`s.
 
+#### Examples
 
-We have an example that creates a schema, a query, a clusters_schema,
-and a cluster_query, run it as:
+Please refer to the [examples/init](examples/init) folder for two examples showing how to initialize a schema, a query, and a `clusters_schema` (if clustering is enabled). One example uses the built-in bootstrap functions, while the other illustrates how to initialize the schemas and query separately. Both methods will populate the `SCHEMA_ID`, `CLUSTERS_SCHEMA_ID`, and `QUERY_ID` fields in your `.env` file. Ensure that these fields have been populated successfully.
+
+##### Bootstrap
 ```shell
-# Use default config file
-uv run examples/1.init_schema_query.py
+# Use default env file and clustering
+uv run examples/init/bootstrap.py
 
-# Or specify a custom config file
-uv run examples/1.init_schema_query.py --config /path/to/your/config.json
+# Or specify a custom env file and clustering option
+uv run examples/init/bootstrap.py --env-path .env --with-clustering False
 ```
-This, will fill out `bearer_token`, `schema_id`, `diff_query_id`,
-`clusters_schema_id`, and `custer_diff_query_id` in your
-config file. Verify that it has been populated successfully.
+##### Manual
+```shell
+# Use default env file and clustering
+uv run examples/init/manual.py
+
+# Or specify a custom env file and clustering option
+uv run examples/init/manual.py --env-path .env --with-clustering False
+```
 
 
-### 2. Uploading Documents
-After initialization, the data owner can upload their documents to the nilDB
-instance. We provide an example of how to do this in
-[examples/2.data_owner_upload.py](examples/2.data_owner_upload.py).
+### Uploading Documents
+After initialization, the data owner can upload their documents to nilDB. We provide an example of how to do this in
+[examples/data_owner/write.py](examples/data_owner/write.py).
 
 By running the script, the documents are uploaded to the nilDB instance in secret-shared form:
 ```shell
-# Use default config, data file, and no clustering
-uv run examples/2.data_owner_upload.py
+# Use default env file and clustering with 2 clusters
+uv run examples/data_owner/write.py
 
 # Or specify custom config, data files, and number of cluster to produce to store the data
-uv run examples/2.data_owner_upload.py --config /path/to/config.json --file /path/to/data.txt --clusters NUMBER_CLUSTERS
+uv run examples/data_owner/write.py --file /path/to/data.txt --clusters NUMBER_CLUSTERS
 ```
 
-## 3. Client Query
+## Client Query
 After having nilDB initialized, documents uploaded, and access to nilAI, the
 client can query the nilDB instance. We provide an example of how to do this in
-[examples/3.client_query.py](examples/3.client_query.py).
+[examples/client/query.py](examples/client/query.py).
 
 By running the script, the client's query is sent to nilAI and the response is
 returned:
 ```shell
 # Use default config and prompt
-uv run examples/3.client_query.py
+uv run examples/client/query.py
 
 # Or specify custom config and prompt
-uv run examples/3.client_query.py --config /path/to/config.json --prompt "Your custom query here"
+uv run examples/client/query.py --prompt "Your custom query here"
 ```
 
 ## Running Benchmarks on RAG using nilDB nodes
@@ -186,7 +186,7 @@ The response is the most relevant data chunks for a given query.
 uv run benchmarks/nilrag_nildb_nodes.py
 
 # Or specify custom config and prompt
-uv run benchmarks/nilrag_nildb_nodes.py --config /path/to/config.json --prompt "Your custom query here"
+uv run benchmarks/nilrag_nildb_nodes.py --prompt "Your custom query here"
 ```
 
 ## Running Tests
@@ -194,6 +194,8 @@ uv run benchmarks/nilrag_nildb_nodes.py --config /path/to/config.json --prompt "
 # Run a specific test file
 uv run -m unittest test.rag
 ```
+
+Note: `test_top_num_chunks_execute` test is optional and not run by default.
 
 ## Flowchart
 
@@ -278,4 +280,50 @@ graph LR
     D1 -- 2a: Upload data --> C1
     D1 -- 2b: Upload centroids --> C2
 
+```
+
+## Repo structure
+
+```
+├── benchmarks
+│   └── nilrag_nildb_nodes.py
+├── examples
+│   ├── client
+│   │   └── query.py
+│   ├── data
+│   │   ├── 20-fake.txt
+│   │   ├── cities.txt
+│   │   ├── climate-change.txt
+│   │   └── computer-science.txt
+│   ├── data_owner
+│   │   ├── flush.py
+│   │   └── write.py
+│   ├── init
+│   │   ├── bootstrap.py
+│   │   └── manual.py
+│   └── synthetic_data.py
+├── pyproject.toml
+├── src
+│   └── nilrag
+│       ├── __init__.py
+│       ├── config.py
+│       ├── nildb
+│       │   ├── __init__.py
+│       │   ├── initialization.py
+│       │   ├── operations.py
+│       │   ├── org_config.py
+│       │   └── aux_files
+│       │       ├── rag_schema.json
+│       │       ├── clusters_schema.json
+│       │       ├── subtract_query.json
+│       │       └── subtract_query_with_clustering.json
+│       ├── rag_vault.py
+│       └── utils
+│           ├── __init__.py
+│           ├── benchmark.py
+│           ├── process.py
+│           └── transform.py
+└── test
+    ├── __init__.py
+    └── rag.py
 ```

@@ -1,6 +1,9 @@
 *.txt
 *.json
 
+# Include all json files in the aux_files directory
+!src/nilrag/nildb/aux_files/*.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
