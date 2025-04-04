@@ -55,6 +55,7 @@ async def main():
         args.config,
         require_bearer_token=True,
         require_schema_id=True,
+        require_clusters_schema_id=True,
     )
     print(nil_db)
     print()
