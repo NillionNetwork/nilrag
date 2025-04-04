@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
+from nilrag.util import get_closest_centroid
 
 import aiohttp
 import jwt
@@ -36,6 +37,7 @@ class ChatCompletionConfig:
     temperature: float = 0.7
     max_tokens: int = 2048
     stream: bool = False
+    filter: dict = None
 
 
 class Node:  # pylint: disable=too-few-public-methods
@@ -308,11 +310,20 @@ class NilDB:
                         "description": "The query embedding",
                         "type": "array",
                         "items": {"type": "number"},
-                    }
+                    },
+                    # "closest_centroid": {
+                    #     "description": "The closest centroid to match",
+                    #     "type": "array",
+                    #     "items": {"type": "integer"},
+                    # },
+                    # "required": ["query_embedding"]
                 },
                 "pipeline": [
                     {"$addFields": {"query_embedding": "##query_embedding"}},
                     {
+                        # "$match": {
+                        #     "centroid_cluster": "##closest_centroid"
+                        # },
                         "$project": {
                             "_id": 1,
                             "difference": {
@@ -393,13 +404,14 @@ class NilDB:
         return jwts
 
     async def diff_query_execute(
-        self, nilql_query_embedding: list[list[bytes]]
+        self, nilql_query_embedding: list[list[bytes]], closest_centroid: list[int] = None
     ) -> List:
         """
         Execute the difference query across all nilDB nodes asynchronously.
 
         Args:
             nilql_query_embedding (list): Encrypted query embedding for all nilDB node.
+            closest_centroid (list): The closest centroid vector to filter by
 
         Returns:
             list: List of difference shares from each nilDB node.
@@ -423,7 +435,10 @@ class NilDB:
             }
             payload = {
                 "id": str(node.diff_query_id),
-                "variables": {"query_embedding": query_embedding_shares[node_index]},
+                "variables": {
+                    "query_embedding": query_embedding_shares[node_index],
+                    "closest_centroid": closest_centroid if closest_centroid else None
+                },
             }
 
             for attempt in range(MAX_RETRIES):
@@ -674,8 +689,17 @@ class NilDB:
             await process_batch(batch_start, batch_end)
         # After processing all batches, upload centroids if they exist
         if centroids is not None and len(centroids) > 1:
-            print("Uploading centroids to clusters schema...")
+            print("Upload centroids:")
+            print(f"Number of centroids: {len(centroids)}")
+            print("Centroid vectors:")
+            for i, centroid in enumerate(centroids):
+                print(f"Centroid {i}: {centroid[:5]}...")  # Print first 5 values
+            
+            # Generate IDs for centroids
             centroid_ids = [str(uuid4()) for _ in centroids]
+            print("Generated centroid IDs:")
+            for i, cid in enumerate(centroid_ids):
+                print(f"Centroid {i}: ID={cid}")
             
             tasks = []
             for node_idx, node in enumerate(self.nodes):
@@ -701,7 +725,111 @@ class NilDB:
             except Exception as e:
                 print(f"Error uploading centroids: {str(e)}")
                 raise
+   
+    async def check_clustering(self) -> int:
+        """
+        Check if clustering was performed and return the number of clusters.
+        
+        Returns:
+            int: Number of clusters found (0 if no clustering was performed)
+        """
+        async def read_clusters_from_node(node: Node) -> dict:
+            print(f"Checking clusters in node {node.url}")
+            print(f"Using clusters schema ID: {node.clusters_schema_id}")
+            
+            url = node.url + "/data/read"
+            headers = {
+                "Authorization": "Bearer " + str(node.bearer_token),
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "schema": node.clusters_schema_id,
+                "filter": {}
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=payload) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise ValueError(f"Error reading clusters: {response.status}, {error_text}")
+                    result = await response.json()
+                    print(f"Clusters found in node {node.url}:")
+                    print(f"Number of clusters: {len(result.get('data', []))}")
+                    return result
 
+        try:
+            # Read from all nodes
+            tasks = [read_clusters_from_node(node) for node in self.nodes]
+            results = await asyncio.gather(*tasks)
+            
+            # Get the number of clusters from the first node's result
+            # (all nodes should have the same number of clusters)
+            num_clusters = len(results[0].get("data", []))
+            return num_clusters
+        except Exception as e:
+            print(f"Error checking clusters: {str(e)}")
+            return 0
+        
+    async def get_closest_centroid_index(self, prompt: str) -> tuple[int,list]:
+        """
+        Retrieve centroids from the database and find the closest one to the query embedding.
+        
+        Args:
+            query_embedding (list): The embedding vector of the query
+            
+        Returns:
+            int: The index of the closest centroid
+        """
+        async def read_centroids_from_node(node: Node) -> dict:
+            # print for the request
+            print(f"Reading centroids from node {node.url}")
+            print(f"Using clusters schema ID: {node.clusters_schema_id}")
+            
+            url = node.url + "/data/read"
+            headers = {
+                "Authorization": "Bearer " + str(node.bearer_token),
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "schema": node.clusters_schema_id,
+                "filter": {}
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=payload) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise ValueError(f"Error reading centroids: {response.status}, {error_text}")
+                    result = await response.json()
+                    print(f"Response from node {node.url}:")
+                    print(f"Number of centroids found: {len(result.get('data', []))}")
+                    return result
+
+        try:
+            # Read from all nodes
+            tasks = [read_centroids_from_node(node) for node in self.nodes]
+            results = await asyncio.gather(*tasks)
+            
+            # Get centroids from the first node's result
+            centroids_data = results[0].get("data", [])       
+            #DEBUG PRINTS
+            print("Centroids data:")
+            for i, centroid_data in enumerate(centroids_data):
+                print(f"Index {i}: ID={centroid_data['_id']}")
+                print(f"Centroid vector (first 5 values): {centroid_data['cluster_centroid'][:5]}")
+            centroids = [centroid["cluster_centroid"] for centroid in centroids_data]
+            centroid_ids = [centroid["_id"] for centroid in centroids_data]
+            closest_centroid_idx, closest_centroid = get_closest_centroid(prompt, centroids)
+            #DEBUG PRINTS
+            print(f"Closest centroid index: {closest_centroid_idx}")
+            print(f"Selected centroid ID: {centroid_ids[closest_centroid_idx]}")
+            print(f"Selected centroid vector (first 5 values): {closest_centroid[:5]}")
+
+            return closest_centroid_idx, closest_centroid, centroid_ids[closest_centroid_idx]
+        except Exception as e:
+            print(f"Error finding closest centroid: {str(e)}")
+            return None, None, None
+    
     # pylint: disable=too-many-locals
     async def top_num_chunks_execute(self, query: str, num_chunks: int) -> List:
         """
@@ -794,16 +922,30 @@ class NilDB:
     def nilai_chat_completion(
         self,
         config: ChatCompletionConfig,
+        closest_centroid: list[int] = None,
     ) -> dict:
         """
         Query the chat completion endpoint of the nilai API.
 
         Args:
             config (ChatCompletionConfig): Configuration for the chat completion request
+            closest_centroid (list[int], optional): The closest centroid vector to filter by
 
         Returns:
             dict: Chat response from the nilai API
         """
+        import time
+        start_time = time.time()
+        
+        # Debug prints for filtering
+        print("Chat completion configuration:")
+        if config.filter:
+            print("Filter is active:")
+            print(f"Filtering by cluster_centroid: {config.filter['cluster_centroid'][:5]}...")
+            print(f"Number of nodes: {len(self.nodes)}")
+        else:
+            print("No filter active - searching all documents")
+
         # Ensure URL format
         nilai_url = config.nilai_url.rstrip("/") + "/v1/chat/completions"
 
@@ -836,8 +978,17 @@ class NilDB:
                     "diff_query_id": node.diff_query_id,
                 }
                 for node in self.nodes
-            ]
+            ],
+            "filter": config.filter,
+            "closest_centroid": closest_centroid,
         }
+
+        # Debug print the full nilrag payload
+        print("Nilrag payload:")
+        print(f"Number of nodes: {len(nilrag['nodes'])}")
+        print(f"Filter: {nilrag['filter']}")
+        if closest_centroid:
+            print(f"Closest centroid (first 5 values): {closest_centroid[:5]}...")
 
         # Construct payload
         payload = {
@@ -851,9 +1002,12 @@ class NilDB:
 
         try:
             # Send POST request
+            print("Sending request to nilai API...")
+            request_start = time.time()
             response = requests.post(
                 nilai_url, headers=headers, json=payload, timeout=3600
             )
+            request_time = time.time() - request_start
 
             # Handle response
             if response.status_code != 200:
@@ -861,7 +1015,25 @@ class NilDB:
                     f"Error in POST request: {response.status_code}, {response.text}"
                 )
 
-            return response.json()  # Return the parsed JSON response
+            result = response.json()
+            
+            # Debug print response details
+            print("Response details:")
+            print(f"Status code: {response.status_code}")
+            if 'usage' in result:
+                print(f"Tokens used: {result['usage']['total_tokens']}")
+            
+            # Check if we have access to the number of documents processed
+            if 'nilrag' in result and 'documents_processed' in result['nilrag']:
+                print(f"Number of documents processed: {result['nilrag']['documents_processed']}")
+            
+            total_time = time.time() - start_time
+            print(f"Timing breakdown:")
+            print(f"Total time: {total_time:.2f} seconds")
+            print(f"Request time: {request_time:.2f} seconds")
+            print(f"Processing time: {total_time - request_time:.2f} seconds")
+            
+            return result
         except Exception as e:
             raise RuntimeError(
                 f"An error occurred while querying the chat completion endpoint: {str(e)}"

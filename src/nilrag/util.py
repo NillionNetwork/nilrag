@@ -103,6 +103,33 @@ def find_closest_chunks(
     sorted_indices = np.argsort(distances)
     return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
 
+def get_closest_centroid(prompt: str, centroids: list[int]) -> int:
+    """
+    Find the closest centroid for a given query embedding.
+    
+    Args:
+        query_embedding (list): The embedding vector of the query in floating-point format
+        centroids (list): List of centroid vectors in fixed-point format
+        
+    Returns:
+        int: The index of the closest centroid
+    """
+     # Generate embedding for the prompt
+    query_embedding = generate_embeddings_huggingface(prompt)
+
+    # Convert query embedding to fixed-point for comparison
+    query_embedding_fixed = [to_fixed_point(val) for val in query_embedding]
+    
+    # Find closest centroid
+    closest_centroid_idx = None
+    min_distance = float('inf')
+    for i, centroid in enumerate(centroids):
+        distance = euclidean_distance(query_embedding_fixed, centroid)
+        if distance < min_distance:
+            min_distance = distance
+            closest_centroid_idx = i
+            
+    return closest_centroid_idx, centroids[closest_centroid_idx]
 
 def group_shares_by_id(shares_per_party: list, transform_share_fn: callable):
     """
@@ -221,13 +248,27 @@ def cluster_embeddings(embeddings: np.ndarray, num_clusters: int):
     Returns:
         tuple: (labels, centroids)
     """
-    print(f"Clustering data into {num_clusters} clusters...")
+    print(f"Starting clustering process:")
+    print(f"Number of embeddings: {len(embeddings)}")
+    print(f"Requested number of clusters: {num_clusters}")
 
     embeddings_array = np.array(embeddings)  # Convert to NumPy array
     kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
     labels = kmeans.fit_predict(embeddings_array)
     centroids = kmeans.cluster_centers_
+    
+    print(f"Clustering results:")
+    print(f"Number of labels: {len(labels)}")
+    print(f"Number of centroids: {len(centroids)}")
+    print("Cluster sizes:")
+    for i in range(num_clusters):
+        print(f"Cluster {i}: {np.sum(labels == i)} documents")
+    
     # Convert each centroid to fixed-point
     centroids = [ [to_fixed_point(val) for val in centroid] for centroid in centroids ]
+    print("First few values of each centroid:")
+    for i, centroid in enumerate(centroids):
+        print(f"Centroid {i}: {centroid[:5]}...")
+    
     print("Clustering completed!")
     return labels, centroids
