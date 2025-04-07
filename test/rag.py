@@ -18,6 +18,7 @@ from src.nilrag.util import (create_chunks, decrypt_float_list,
 @dataclass
 class TestCase:
     """Test case configuration for RAG testing."""
+
     file_path: str
     query: str
     expected_results: List[Tuple[str, float]]
@@ -190,7 +191,10 @@ class TestRAGMethods(unittest.TestCase):
         """Compute differences between query and document embeddings."""
         # Rearrange shares by party
         embeddings_shares = [
-            [[row[party] for row in embedding] for embedding in encrypted_data["nilql_embeddings"]]
+            [
+                [row[party] for row in embedding]
+                for embedding in encrypted_data["nilql_embeddings"]
+            ]
             for party in range(num_parties)
         ]
         query_embedding_shares = [
@@ -200,8 +204,7 @@ class TestRAGMethods(unittest.TestCase):
 
         # Compute differences
         differences_shares = [
-            np.array(query_embedding_shares[party])
-            - np.array(embeddings_shares[party])
+            np.array(query_embedding_shares[party]) - np.array(embeddings_shares[party])
             for party in range(num_parties)
         ]
 

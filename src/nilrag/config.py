@@ -34,14 +34,18 @@ def load_nil_db_config(
         ValueError: If the configuration file is invalid or required fields are missing.
     """
     if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Error: NilDB configuration file not found at {config_path}")
+        raise FileNotFoundError(
+            f"Error: NilDB configuration file not found at {config_path}"
+        )
 
     print(f"Loading NilDB configuration from {config_path}...")
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as exc:
-        raise ValueError(f'Error: Invalid JSON in configuration file {config_path}') from exc
+        raise ValueError(
+            f"Error: Invalid JSON in configuration file {config_path}"
+        ) from exc
 
     # Get secret key if required
     secret_key = None

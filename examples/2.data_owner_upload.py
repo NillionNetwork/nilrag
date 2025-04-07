@@ -53,12 +53,8 @@ async def main():
 
     # Initialize secret keys for different modes of operation
     num_nodes = len(nil_db.nodes)
-    additive_key = nilql.ClusterKey.generate(
-        {"nodes": [{}] * num_nodes}, {"sum": True}
-    )
-    xor_key = nilql.ClusterKey.generate(
-        {"nodes": [{}] * num_nodes}, {"store": True}
-    )
+    additive_key = nilql.ClusterKey.generate({"nodes": [{}] * num_nodes}, {"sum": True})
+    xor_key = nilql.ClusterKey.generate({"nodes": [{}] * num_nodes}, {"store": True})
 
     # Load and process input file
     paragraphs = load_file(args.file)
