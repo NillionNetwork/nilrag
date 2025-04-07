@@ -1,5 +1,5 @@
 """
-Example of querying nilDB with NilAI using nilRAG.
+Example of server performing RAG with nilDB nodes.
 """
 
 import argparse
@@ -16,15 +16,14 @@ DEFAULT_PROMPT = "Who is Danielle Miller?"
 
 async def main():
     """
-    Query nilDB with NilAI using nilRAG.
+    Performing RAG using nilDB nodes. This is the RAG logic to be run on nilAI. 
 
     This script:
     1. Loads the nilDB configuration
-    2. Creates a chat completion configuration
-    3. Sends the query to nilAI with nilRAG
-    4. Displays the response and timing information
+    2. Performs RAG using nilDB nodes
+    3. Displays the response and timing information
     """
-    parser = argparse.ArgumentParser(description="Query nilDB with NilAI using nilRAG")
+    parser = argparse.ArgumentParser(description="Query nilDB using nilRAG")
     parser.add_argument(
         "--config",
         type=str,
