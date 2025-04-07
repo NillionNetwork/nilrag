@@ -563,10 +563,10 @@ class NilDB:
         It performs the following steps:
         1. Generates embeddings for the input query.
         2. Encrypts the query embeddings.
-        3. Computes the difference between the encrypted query embeddings and stored data 
+        3. Computes the difference between the encrypted query embeddings and stored data
         embeddings.
         4. Decrypts the differences to compute distances.
-        5. Identifies and retrieves the top `num_chunks` data chunks that are most relevant to 
+        5. Identifies and retrieves the top `num_chunks` data chunks that are most relevant to
         the query.
 
         Args:

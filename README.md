@@ -165,18 +165,6 @@ uv run examples/3.client_query.py
 uv run examples/3.client_query.py --config /path/to/config.json --prompt "Your custom query here"
 ```
 
-## 4. Server Handling
-The nilAI Server is responsible for handling the RAG request. We provide an example of how to run the code nilAI is using.
-[examples/4.server_nilrag.py](examples/4.server_nilrag.py).
-
-By running the script, the you querie nilDB and extract the top number of chucks most similar to your query:
-```shell
-# Use default config and prompt
-uv run examples/4.server_nilrag.py
-
-# Or specify custom config and prompt
-uv run examples/4.server_nilrag.py --config /path/to/config.json --prompt "Your custom query here"
-```
 
 ## Running Tests
 ```shell
