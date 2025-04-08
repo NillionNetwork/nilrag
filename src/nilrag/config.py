@@ -6,8 +6,10 @@ import json
 import os
 from typing import Optional, Tuple
 
-from nilrag.nildb_requests import NilDB, Node
+from dotenv import load_dotenv
+_ = load_dotenv()
 
+from nilrag.nildb_requests import NilDB, Node
 
 def load_nil_db_config(
     config_path: str,
@@ -44,11 +46,15 @@ def load_nil_db_config(
         raise ValueError(f'Error: Invalid JSON in configuration file {config_path}') from exc
 
     # Get secret key if required
-    secret_key = None
-    if require_secret_key:
-        if "org_secret_key" not in data:
-            raise ValueError("Error: org_secret_key not found in configuration")
-        secret_key = data["org_secret_key"]
+    secret_key = os.getenv("NILDB_ORG_SECRET_KEY")
+    if require_secret_key and not secret_key:
+        raise ValueError("Error: org_secret_key not found in NILDB_ORG_SECRET_KEY envvar")
+
+    # Get org DID
+    org_did = os.getenv("NILDB_ORG_DID")
+
+    if not org_did:
+        raise ValueError("Error: org_did not found in NILDB_ORG_DID envvar")
 
     # Create nodes
     nodes = []
@@ -65,7 +71,7 @@ def load_nil_db_config(
         node = Node(
             url=node_data["url"],
             node_id=node_data.get("node_id"),
-            org=data.get("org_did"),
+            org=org_did,
             bearer_token=node_data.get("bearer_token"),
             schema_id=node_data.get("schema_id"),
             diff_query_id=node_data.get("diff_query_id"),

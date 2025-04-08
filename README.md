@@ -105,16 +105,16 @@ pip install nilrag
 ## Data owner
 
 ### 1. Initialization
-First, copy the sample nilDB config file:
+First, copy the example nilDB `.env` and nilDB config:
+
 ```shell
 cp ./examples/nildb_config.sample.json ./examples/nildb_config.json
+cp .env.example .env
 ```
+
 Next, register a new organization in Nillion's [SecretVault Registration
 Portal](https://sv-sda-registration.replit.app/) and fill in the details in your
-nilDB config file `./examples/nildb_config.json`.
-
-You can safely ignore `bearer_token`, `schema_id`, and `diff_query_id` as we'll
-fill these out later.
+`.env` file.
 
 You are all set to create your first schema and query for RAG. At the minimum,
 they should look like:
@@ -132,9 +132,9 @@ uv run examples/1.init_schema_query.py
 # Or specify a custom config file
 uv run examples/1.init_schema_query.py --config /path/to/your/config.json
 ```
-This, will fill out `bearer_token`, `schema_id`, and `diff_query_id` in your
-config file. Verify that it has been populated successfully.
 
+This will fill out `bearer_token`, `schema_id`, and `diff_query_id` in your
+config file. Verify that it has been populated successfully.
 
 ### 2. Uploading Documents
 After initialization, the data owner can upload their documents to the nilDB
@@ -170,3 +170,14 @@ uv run examples/3.client_query.py --config /path/to/config.json --prompt "Your c
 # Run a specific test file
 uv run -m unittest test.rag
 ```
+
+## Note
+
+When querying nilRAG on data which is public knowledge, it is not always evident if the answer
+you get back comes from the RAG itself or from the model's general knowledge. For example, if
+you query the nilRAG which uses the provided `examples/data/20-fake.txt` dataset about a famous
+person, it will reply with details of the famous person even though that data is not present in
+the `examples/data/20-fake.txt` dataset. This is easily fixed by using a prompt which includes an
+instruction like:
+
+> If you don't know, just say you don't know.
