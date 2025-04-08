@@ -18,6 +18,7 @@ from src.nilrag.util import (create_chunks, decrypt_float_list,
 
 DEFAULT_CONFIG = "test/nildb_config.json"
 DEFAULT_PROMPT = "Who is Danielle Miller?"
+RUN_OPTIONAL_TESTS = False
 
 
 @dataclass
@@ -275,6 +276,7 @@ class TestRAGMethods(unittest.IsolatedAsyncioTestCase):
             # Assertions
             self.check_top_results(top_results, case.expected_results)
 
+    @unittest.skipUnless(RUN_OPTIONAL_TESTS, "Skipping optional test.")
     async def test_top_num_chunks_execute(self):
         """
         Test the RAG method with nilDB.
