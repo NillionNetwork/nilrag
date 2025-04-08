@@ -2,6 +2,7 @@
 Test suite containing functional unit tests of exported functions.
 """
 
+import json
 import time
 import unittest
 from dataclasses import dataclass
@@ -10,20 +11,26 @@ from typing import List, Tuple
 import nilql
 import numpy as np
 
+from src.nilrag.config import load_nil_db_config
 from src.nilrag.util import (create_chunks, decrypt_float_list,
                              encrypt_float_list, find_closest_chunks,
                              generate_embeddings_huggingface, load_file)
+
+DEFAULT_CONFIG = "test/nildb_config.json"
+DEFAULT_PROMPT = "Who is Danielle Miller?"
+RUN_OPTIONAL_TESTS = False
 
 
 @dataclass
 class TestCase:
     """Test case configuration for RAG testing."""
+
     file_path: str
     query: str
     expected_results: List[Tuple[str, float]]
 
 
-class TestRAGMethods(unittest.TestCase):
+class TestRAGMethods(unittest.IsolatedAsyncioTestCase):
     """
     Test suite for RAG (Retrieval Augmented Generation) functionality.
 
@@ -190,7 +197,10 @@ class TestRAGMethods(unittest.TestCase):
         """Compute differences between query and document embeddings."""
         # Rearrange shares by party
         embeddings_shares = [
-            [[row[party] for row in embedding] for embedding in encrypted_data["nilql_embeddings"]]
+            [
+                [row[party] for row in embedding]
+                for embedding in encrypted_data["nilql_embeddings"]
+            ]
             for party in range(num_parties)
         ]
         query_embedding_shares = [
@@ -200,8 +210,7 @@ class TestRAGMethods(unittest.TestCase):
 
         # Compute differences
         differences_shares = [
-            np.array(query_embedding_shares[party])
-            - np.array(embeddings_shares[party])
+            np.array(query_embedding_shares[party]) - np.array(embeddings_shares[party])
             for party in range(num_parties)
         ]
 
@@ -266,6 +275,30 @@ class TestRAGMethods(unittest.TestCase):
 
             # Assertions
             self.check_top_results(top_results, case.expected_results)
+
+    @unittest.skipUnless(RUN_OPTIONAL_TESTS, "Skipping optional test.")
+    async def test_top_num_chunks_execute(self):
+        """
+        Test the RAG method with nilDB.
+        """
+
+        # Load NilDB configuration
+        nil_db, _ = load_nil_db_config(
+            DEFAULT_CONFIG,
+            require_bearer_token=True,
+            require_schema_id=True,
+            require_diff_query_id=True,
+        )
+        print(nil_db)
+        print()
+
+        print("Perform nilRAG...")
+        start_time = time.time()
+        query = DEFAULT_PROMPT
+        top_chunks = await nil_db.top_num_chunks_execute(query, 2)
+        end_time = time.time()
+        print(json.dumps(top_chunks, indent=4))
+        print(f"Query took {end_time - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":

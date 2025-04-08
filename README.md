@@ -165,6 +165,7 @@ uv run examples/3.client_query.py
 uv run examples/3.client_query.py --config /path/to/config.json --prompt "Your custom query here"
 ```
 
+
 ## Running Tests
 ```shell
 # Run a specific test file

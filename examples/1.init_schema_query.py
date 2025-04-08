@@ -35,9 +35,7 @@ async def main():
     args = parser.parse_args()
 
     # Load NilDB configuration
-    nil_db, secret_key = load_nil_db_config(
-        args.config, require_secret_key=True
-    )
+    nil_db, secret_key = load_nil_db_config(args.config, require_secret_key=True)
     jwts = nil_db.generate_jwt(secret_key, ttl=3600)
     print(nil_db)
     print()

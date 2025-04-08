@@ -11,8 +11,13 @@ from uuid import uuid4
 
 import aiohttp
 import jwt
+import nilql
+import numpy as np
 import requests
 from ecdsa import SECP256k1, SigningKey
+
+from .util import (decrypt_float_list, encrypt_float_list,
+                   generate_embeddings_huggingface, group_shares_by_id)
 
 # Constants
 TIMEOUT = 3600
@@ -171,7 +176,10 @@ class NilDB:
                         async with session.post(
                             url, headers=headers, json=payload, timeout=TIMEOUT
                         ) as response:
-                            if response.status not in [HTTPStatus.CREATED, HTTPStatus.OK]:
+                            if response.status not in [
+                                HTTPStatus.CREATED,
+                                HTTPStatus.OK,
+                            ]:
                                 error_text = await response.text()
                                 raise ValueError(
                                     f"Error in POST request: {response.status}, {error_text}"
@@ -255,7 +263,10 @@ class NilDB:
                         async with session.post(
                             url, headers=headers, json=payload, timeout=TIMEOUT
                         ) as response:
-                            if response.status not in [HTTPStatus.CREATED, HTTPStatus.OK]:
+                            if response.status not in [
+                                HTTPStatus.CREATED,
+                                HTTPStatus.OK,
+                            ]:
                                 error_text = await response.text()
                                 raise ValueError(
                                     f"Error in POST request: {response.status}, {error_text}"
@@ -302,7 +313,9 @@ class NilDB:
             jwts.append(node.bearer_token)
         return jwts
 
-    async def diff_query_execute(self, nilql_query_embedding: list[list[bytes]]):
+    async def diff_query_execute(
+        self, nilql_query_embedding: list[list[bytes]]
+    ) -> List:
         """
         Execute the difference query across all nilDB nodes asynchronously.
 
@@ -361,7 +374,7 @@ class NilDB:
         difference_shares = await asyncio.gather(*tasks)
         return difference_shares
 
-    async def chunk_query_execute(self, chunk_ids: list[str]):
+    async def chunk_query_execute(self, chunk_ids: list[str]) -> List:
         """
         Retrieve chunks by their IDs from all nilDB nodes asynchronously.
 
@@ -414,8 +427,8 @@ class NilDB:
         self,
         lst_embedding_shares: list[list[int]],
         lst_chunk_shares: list[list[bytes]],
-        batch_size: int = 100
-    ):
+        batch_size: int = 100,
+    ) -> None:
         """
         Upload embeddings and chunks to all nilDB nodes asynchronously in batches.
 
@@ -508,13 +521,15 @@ class NilDB:
                 batch_data = []
                 for batch_idx, doc_idx in enumerate(range(batch_start, batch_end)):
                     # Join the shares of one embedding in one vector for this node
-                    batch_data.append({
-                        "_id":  doc_ids[batch_idx],
-                        "embedding": [
-                            e[node_idx] for e in lst_embedding_shares[doc_idx]
-                        ],
-                        "chunk": lst_chunk_shares[doc_idx][node_idx],
-                    })
+                    batch_data.append(
+                        {
+                            "_id": doc_ids[batch_idx],
+                            "embedding": [
+                                e[node_idx] for e in lst_embedding_shares[doc_idx]
+                            ],
+                            "chunk": lst_chunk_shares[doc_idx][node_idx],
+                        }
+                    )
 
                 task = upload_to_node(node, batch_data)
                 tasks.append(task)
@@ -523,11 +538,13 @@ class NilDB:
                 results = await asyncio.gather(*tasks)
                 print(f"Successfully uploaded batch {batch_start//batch_size + 1}")
                 for result in results:
-                    print({
-                        "status_code": 200,
-                        "message": "Success",
-                        "response_json": result
-                    })
+                    print(
+                        {
+                            "status_code": 200,
+                            "message": "Success",
+                            "response_json": result,
+                        }
+                    )
             except Exception as e:
                 print(f"Error uploading batch {batch_start//batch_size + 1}: {str(e)}")
                 raise
@@ -537,6 +554,95 @@ class NilDB:
         for batch_start in range(0, total_documents, batch_size):
             batch_end = min(batch_start + batch_size, total_documents)
             await process_batch(batch_start, batch_end)
+
+    # pylint: disable=too-many-locals
+    async def top_num_chunks_execute(self, query: str, num_chunks: int) -> List:
+        """
+        Retrieves the top `num_chunks` most relevant data chunks for a given query.
+
+        It performs the following steps:
+        1. Generates embeddings for the input query.
+        2. Encrypts the query embeddings.
+        3. Computes the difference between the encrypted query embeddings and stored data
+        embeddings.
+        4. Decrypts the differences to compute distances.
+        5. Identifies and retrieves the top `num_chunks` data chunks that are most relevant to
+        the query.
+
+        Args:
+            query (str): The input query string for which relevant data chunks are to be retrieved.
+            num_chunks (int): The number of top relevant data chunks to retrieve.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries, each containing:
+                - `_id` (Any): The unique identifier of the data chunk.
+                - `distances` (float): The computed distance between the query and the data chunk.
+        """
+        # Check input format
+        if query is None:
+            if not isinstance(query, str):
+                raise TypeError("Prompt must be a string")
+
+        # Initialize secret keys
+        num_parties = len(self.nodes)
+        additive_key = nilql.ClusterKey.generate(
+            {"nodes": [{}] * num_parties}, {"sum": True}
+        )
+        xor_key = nilql.ClusterKey.generate(
+            {"nodes": [{}] * num_parties}, {"store": True}
+        )
+
+        # Step 1: Generate query embeddings.
+        # Note: one string query is assumed.
+        query_embedding = generate_embeddings_huggingface([query])[0]
+        nilql_query_embedding = encrypt_float_list(additive_key, query_embedding)
+
+        # Step 2: Ask NilDB to compute the differences
+        difference_shares = await self.diff_query_execute(nilql_query_embedding)
+
+        # Step 3: Compute distances and sort
+        # 3.1 Group difference shares by ID
+        difference_shares_by_id = group_shares_by_id(
+            difference_shares,  # type: ignore
+            lambda share: share["difference"],
+        )
+        # 3.2 Transpose the lists for each _id
+        difference_shares_by_id = {
+            id: list(map(list, zip(*differences)))
+            for id, differences in difference_shares_by_id.items()
+        }
+        # 3.3 Decrypt and compute distances
+        reconstructed = [
+            {
+                "_id": id,
+                "distances": np.linalg.norm(
+                    decrypt_float_list(additive_key, difference_shares)
+                ),
+            }
+            for id, difference_shares in difference_shares_by_id.items()
+        ]
+        # 3.4 Sort id list based on the corresponding distances
+        sorted_ids = sorted(reconstructed, key=lambda x: x["distances"])
+
+        # Step 4: Query the top num_chunks
+        top_num_chunks_ids = [item["_id"] for item in sorted_ids[:num_chunks]]
+
+        # 4.1 Query top num_chunks
+        chunk_shares = await self.chunk_query_execute(top_num_chunks_ids)
+
+        # 4.2 Group chunk shares by ID
+        chunk_shares_by_id = group_shares_by_id(
+            chunk_shares,  # type: ignore
+            lambda share: share["chunk"],
+        )
+
+        # 4.3 Decrypt chunks
+        top_num_chunks = [
+            {"_id": id, "distances": nilql.decrypt(xor_key, chunk_shares)}
+            for id, chunk_shares in chunk_shares_by_id.items()
+        ]
+
+        return top_num_chunks
 
     def nilai_chat_completion(
         self,
