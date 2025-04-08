@@ -16,6 +16,7 @@ def load_nil_db_config(
     require_schema_id: bool = False,
     require_diff_query_id: bool = False,
     require_clusters_schema_id: bool = False,
+    require_cluster_diff_query_id: bool = False,
 ) -> Tuple[NilDB, Optional[str]]:
     """
     Load nilDB configuration from JSON file.
@@ -68,6 +69,8 @@ def load_nil_db_config(
             raise ValueError("Error: diff_query_id not found in node data")
         if require_clusters_schema_id and "clusters_schema_id" not in node_data:
             raise ValueError("Error: clusters_schema_id not found in node data")
+        if require_cluster_diff_query_id and "cluster_diff_query_id" not in node_data:
+            raise ValueError("Error: cluster_diff_query_id not found in node data")
 
         # Create node with all available fields
         node = Node(
@@ -78,6 +81,7 @@ def load_nil_db_config(
             schema_id=node_data.get("schema_id"),
             diff_query_id=node_data.get("diff_query_id"),
             clusters_schema_id=node_data.get("clusters_schema_id"),
+            cluster_diff_query_id=node_data.get("cluster_diff_query_id"),
         )
         nodes.append(node)
 

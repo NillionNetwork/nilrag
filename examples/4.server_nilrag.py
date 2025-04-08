@@ -44,18 +44,39 @@ async def main():
         require_bearer_token=True,
         require_schema_id=True,
         require_diff_query_id=True,
+        require_clusters_schema_id=True,
+        require_cluster_diff_query_id=True,
+
     )
     print(nil_db)
     print()
 
+    # Check if clustering was performed
+    print("Starting cluster check...")
+    start_time = time.time()
+    num_clusters, closest_centroid = await nil_db.check_clustering_and_get_closest_centroid(args.prompt)
+    cluster_check_time = time.time() - start_time
+    # filter = {}
+    if num_clusters > 1:
+        print(f"Clustering was performed - found {num_clusters} clusters")
+        if closest_centroid is not None:
+            print(f"Closest centroid found:")
+            print(f"Selected centroid (first 5 values) (first 5 values): {closest_centroid[:5]}")
+            # filter = {
+            #     "cluster_centroid": closest_centroid
+            # }
+    else:
+        print("No clustering was performed - no centroids found in clusters schema")
+    print(f"Cluster check and (if existing) centroid selection took {cluster_check_time:.2f} seconds")
+
     print("Perform nilRAG...")
     start_time = time.time()
-    query = DEFAULT_PROMPT
-    top_chunks = await nil_db.top_num_chunks_execute(query, 2)
+    query = args.prompt
+    top_chunks = await nil_db.top_num_chunks_execute(query, 2, closest_centroid)
     end_time = time.time()
     print(json.dumps(top_chunks, indent=4))
     print(f"Query took {end_time - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+     asyncio.run(main())

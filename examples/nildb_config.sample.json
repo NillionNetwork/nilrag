@@ -6,7 +6,8 @@
             "bearer_token": "",
             "schema_id": "",
             "diff_query_id": "",
-            "clusters_schema_id": ""
+            "clusters_schema_id": "",
+            "cluster_diff_query_id": ""
         },
         {
             "url": "https://nildb-p3mx.nillion.network/api/v1",
@@ -14,7 +15,9 @@
             "bearer_token": "",
             "schema_id": "",
             "diff_query_id": "",
-            "clusters_schema_id": ""
+            "clusters_schema_id": "",
+            "cluster_diff_query_id": ""
+
         },
         {
             "url": "https://nildb-rugk.nillion.network/api/v1",
@@ -22,7 +25,9 @@
             "bearer_token": "",
             "schema_id": "",
             "diff_query_id": "",
-            "clusters_schema_id": ""
+            "clusters_schema_id": "",
+            "cluster_diff_query_id": ""
+
         }
     ],
     "org_secret_key": "Add you SECRET_KEY here",
