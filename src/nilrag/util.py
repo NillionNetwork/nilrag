@@ -257,18 +257,10 @@ def cluster_embeddings(embeddings: np.ndarray, num_clusters: int):
     labels = kmeans.fit_predict(embeddings_array)
     centroids = kmeans.cluster_centers_
     
-    print(f"Clustering results:")
-    print(f"Number of labels: {len(labels)}")
-    print(f"Number of centroids: {len(centroids)}")
     print("Cluster sizes:")
     for i in range(num_clusters):
         print(f"Cluster {i}: {np.sum(labels == i)} documents")
-    
     # Convert each centroid to fixed-point
     centroids = [ [to_fixed_point(val) for val in centroid] for centroid in centroids ]
-    print("First few values of each centroid:")
-    for i, centroid in enumerate(centroids):
-        print(f"Centroid {i}: {centroid[:5]}...")
-    
     print("Clustering completed!")
     return labels, centroids

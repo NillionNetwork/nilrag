@@ -59,6 +59,12 @@ async def main():
     end_time = time.time()
     print(f"Query initialized successfully in {end_time - start_time:.2f} seconds")
 
+    print("Initializing query for clustered data...")
+    start_time = time.time()
+    cluster_diff_query_id = await nil_db.init_cluster_diff_query()
+    end_time = time.time()
+    print(f"Cluster query initialized successfully in {end_time - start_time:.2f} seconds")
+
     # Update config file with new IDs and tokens
     with open(args.config, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -66,6 +72,7 @@ async def main():
         node_data["schema_id"] = schema_id
         node_data["diff_query_id"] = diff_query_id
         node_data["clusters_schema_id"] = clusters_schema_id
+        node_data["cluster_diff_query_id"] = cluster_diff_query_id
         node_data["bearer_token"] = jwt
     with open(args.config, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
