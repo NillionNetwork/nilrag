@@ -28,6 +28,8 @@ def load_nil_db_config(
         require_schema_id: Whether to require schema_id in node data
         require_diff_query_id: Whether to require diff_query_id in node data
         require_clusters_schema_id: Whether to require clusters_schema_id in node data
+        require_cluster_diff_query_id: Whether to require cluster_diff_query_id in node data
+
 
     Returns:
         tuple: (NilDB instance, secret_key if required)

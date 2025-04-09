@@ -103,7 +103,7 @@ def find_closest_chunks(
     sorted_indices = np.argsort(distances)
     return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
 
-def get_closest_centroid(prompt: str, centroids: list[int]) -> int:
+def get_closest_centroid(prompt: str, centroids: list[int]) -> list[int]:
     """
     Find the closest centroid for a given query embedding.
     
@@ -129,7 +129,7 @@ def get_closest_centroid(prompt: str, centroids: list[int]) -> int:
             min_distance = distance
             closest_centroid_idx = i
             
-    return closest_centroid_idx, centroids[closest_centroid_idx]
+    return centroids[closest_centroid_idx]
 
 def group_shares_by_id(shares_per_party: list, transform_share_fn: callable):
     """

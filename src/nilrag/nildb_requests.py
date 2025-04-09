@@ -55,6 +55,8 @@ class Node:  # pylint: disable=too-few-public-methods
         schema_id (str, optional): ID of the schema associated with this node
         diff_query_id (str, optional): ID of the differences query for this node
         clusters_schema_id (str, optional): ID of the schema of clusters associated with this node
+        clusters_diff_query_id (str, optional): ID of the differences query with a filter for this node
+
     """
 
     def __init__(
@@ -80,6 +82,8 @@ class Node:  # pylint: disable=too-few-public-methods
             schema_id (str, optional): Associated schema ID
             diff_query_id (str, optional): Associated differences query ID
             clusters_schema_id (str, optional): Associated clusters' schema ID
+            cluster_diff_query_id (str, optional): Associated differences query with filter ID
+
         """
         self.url = url[:-1] if url.endswith("/") else url
         self.node_id = node_id
@@ -138,9 +142,10 @@ class NilDB:
         """
         Initialize the nilDB schema across all nodes asynchronously.
 
-        Creates a schema for storing embeddings and chunks with a common schema ID
-        across all nilDB nodes. The schema defines the structure for storing document
-        embeddings and their corresponding text chunks.
+        Creates a schema for storing cluster centroids (when clustering is performed),
+        embeddings and chunks with a common schema ID across all nilDB nodes.
+        The schema defines the structure for storing document
+        embeddings and their corresponding text chunks and clusters' centroids.
 
         Raises:
             ValueError: If schema creation fails on any nilDB node
@@ -274,11 +279,11 @@ class NilDB:
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                     if attempt == MAX_RETRIES - 1:
                         raise ValueError(
-                            f"Failed to create clusters schema after {MAX_RETRIES} attempts: {str(e)}"
+                            f"Failed to create clusters' schema after {MAX_RETRIES} attempts: {str(e)}"
                         ) from e
                     await asyncio.sleep(RETRY_DELAY * (attempt + 1))
 
-        # Create schema on all nodes in parallel
+        # Create clusters' schema on all nodes in parallel
         tasks = [create_clusters_schema_for_node(node) for node in self.nodes]
         await asyncio.gather(*tasks)
         print(f"Clusters' Schema {clusters_schema_id} created successfully.")
@@ -376,7 +381,7 @@ class NilDB:
             Initialize the difference query across all nilDB nodes asynchronously.
 
             Creates a query that calculates the difference between stored embeddings 
-            with closest centroid tag and a query embedding.
+            with closest centroid filter and a query embedding.
             This query is used for similarity search operations.
 
             Raises:
@@ -464,7 +469,7 @@ class NilDB:
                             ) from e
                         await asyncio.sleep(RETRY_DELAY * (attempt + 1))
 
-            # Create query on all nodes in parallel
+            # Create query with filter on all nodes in parallel
             tasks = [create_cluster_query_for_node(node) for node in self.nodes]
             await asyncio.gather(*tasks)
             print(f"Cluster query {cluster_diff_query_id} created successfully.")
@@ -507,7 +512,7 @@ class NilDB:
 
         Args:
             nilql_query_embedding (list): Encrypted query embedding for all nilDB node.
-            closest_centroid (list): The closest centroid vector to filter by
+            closest_centroid (list): The closest centroid to filter by
 
         Returns:
             list: List of difference shares from each nilDB node.
@@ -529,7 +534,17 @@ class NilDB:
                 "Authorization": "Bearer " + str(node.bearer_token),
                 "Content-Type": "application/json",
             }
+
+            # Assemble the variables to execute query
+            variables = {
+                "query_embedding": query_embedding_shares[node_index]
+            }
+            # If there was clustering adds variable "closest_centroid"
+            # chooses cluster_diff_query_id to perform the query
+            # otherwise, chooses diff_query_id to perform the query 
             if closest_centroid is not None:
+                # adds "closesr_centroid"
+                variables["closest_centroid"] = closest_centroid
                 if not node.cluster_diff_query_id:
                     raise ValueError(f"[Node {node.url}] Missing cluster_diff_query_id")
                 query_id = str(node.cluster_diff_query_id)
@@ -537,13 +552,6 @@ class NilDB:
                 if not node.diff_query_id:
                     raise ValueError(f"[Node {node.url}] Missing diff_query_id")
                 query_id = str(node.diff_query_id)
-            # <<< Dynamically assemble variables >>>
-            variables = {
-                "query_embedding": query_embedding_shares[node_index]
-            }
-            if closest_centroid is not None:
-                variables["closest_centroid"] = closest_centroid
-
             payload = {
                 "id": query_id,
                 "variables": variables
@@ -869,7 +877,7 @@ class NilDB:
                 return 0, None
             num_clusters = len(clusters_data)
             centroids = [centroid["cluster_centroid"] for centroid in clusters_data]
-            _, closest_centroid = get_closest_centroid(prompt, centroids)
+            closest_centroid = get_closest_centroid(prompt, centroids)
             return num_clusters, closest_centroid
         except Exception as e:
             print(f"Error checking clusters and finding closest centroid: {str(e)}")
