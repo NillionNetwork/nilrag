@@ -43,10 +43,10 @@ async def main():
         help=f"Path to data file to upload (default: {DEFAULT_FILE_PATH})",
     )
     parser.add_argument(
-    "--clusters",
-    type=int,
-    default=1,
-    help="Number of clusters to use (default: {DEFAULT_NUMBER_CLUSTERS})"
+        "--clusters",
+        type=int,
+        default=1,
+        help="Number of clusters to use (default: {DEFAULT_NUMBER_CLUSTERS})"
     )
     args = parser.parse_args()
 

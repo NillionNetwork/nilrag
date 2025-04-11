@@ -103,31 +103,26 @@ def find_closest_chunks(
     sorted_indices = np.argsort(distances)
     return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
 
-def get_closest_centroid(prompt: str, centroids: list[int]) -> list[int]:
+def get_closest_centroid(query_embedding: np.ndarray, centroids: list[int]) -> list[int]:
     """
     Find the closest centroid for a given query embedding.
     
     Args:
-        query_embedding (list): The embedding vector of the query in floating-point format
+        query_embedding (np.ndarray): The embedding vector of the query in floating-point format
         centroids (list): List of centroid vectors in fixed-point format
         
     Returns:
         int: The index of the closest centroid
     """
-     # Generate embedding for the prompt
-    query_embedding = generate_embeddings_huggingface(prompt)
-
     # Convert query embedding to fixed-point for comparison
     query_embedding_fixed = [to_fixed_point(val) for val in query_embedding]
     
     # Find closest centroid
-    closest_centroid_idx = None
-    min_distance = float('inf')
-    for i, centroid in enumerate(centroids):
-        distance = euclidean_distance(query_embedding_fixed, centroid)
-        if distance < min_distance:
-            min_distance = distance
-            closest_centroid_idx = i
+    # closest_centroid_idx = None
+    closest_centroid_idx = min(  
+        range(len(centroids)),  
+        key=lambda i: euclidean_distance(query_embedding_fixed, centroids[i])  
+    )
             
     return centroids[closest_centroid_idx]
 

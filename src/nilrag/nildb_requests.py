@@ -668,6 +668,10 @@ class NilDB:
                 ]
             batch_size (int, optional): Number of documents to upload in each batch.
                 Defaults to 100.
+            labels (list[int]): List of labels given for each emedding. 
+                Defaults to None.
+            centroids (list[int]): List of clusters centroids when clustering is performed.
+                Defaults to None.
 
         Example:
             >>> # Set up encryption keys for 3 nodes
@@ -834,9 +838,9 @@ class NilDB:
                 print(f"Error uploading centroids: {str(e)}")
                 raise
    
-    async def check_clustering_and_get_closest_centroid(
+    async def get_closest_centroid(
             self,
-            prompt: str) -> tuple[int, Optional[List[float]]]:
+            query_embedding: np.ndarray) -> tuple[int, Optional[List[float]]]:
         """
         Check if clustering was performed and return the number of clusters.
         
@@ -877,7 +881,7 @@ class NilDB:
                 return 0, None
             num_clusters = len(clusters_data)
             centroids = [centroid["cluster_centroid"] for centroid in clusters_data]
-            closest_centroid = get_closest_centroid(prompt, centroids)
+            closest_centroid = get_closest_centroid(query_embedding, centroids)
             return num_clusters, closest_centroid
         except Exception as e:
             print(f"Error checking clusters and finding closest centroid: {str(e)}")
@@ -885,7 +889,7 @@ class NilDB:
             
     # pylint: disable=too-many-locals
     async def top_num_chunks_execute(
-            self, query: str,
+            self, query_embedding: np.ndarray,
             num_chunks: int,
             closest_centroid: list[int] = None
             ) -> List:
@@ -911,9 +915,9 @@ class NilDB:
                 - `distances` (float): The computed distance between the query and the data chunk.
         """
         # Check input format
-        if query is None:
-            if not isinstance(query, str):
-                raise TypeError("Prompt must be a string")
+        if query_embedding is None:
+            if not isinstance(query_embedding, np.ndarray):
+                raise TypeError("Query embedding must be a np.array")
 
         # Initialize secret keys
         start_time = time.time()
@@ -925,24 +929,20 @@ class NilDB:
             {"nodes": [{}] * num_parties}, {"store": True}
         )
         end_time = time.time()
-        secret_keys_initialization_time = round(end_time - start_time, 2)
-        print(f"Secret keys initialization time: {secret_keys_initialization_time} sec")
-        # Step 1: Generate query embeddings.
-        # Note: one string query is assumed.
+        print(f"Secret keys initialization time: {end_time - start_time:.2f} sec")
+        # Step 1: Encrypt query embedding.
+        # Note: one query embedding np.array is assumed.
         start_time = time.time()
-        query_embedding = generate_embeddings_huggingface([query])[0]
         nilql_query_embedding = encrypt_float_list(additive_key, query_embedding)
         end_time = time.time()
-        embedding_generation_time = round(end_time - start_time, 2)
-        print(f"Embedding generation time: {embedding_generation_time} sec")
+        print(f"Encrypting query embedding time: {end_time - start_time:.2f} sec")
 
 
         # Step 2: Ask NilDB to compute the differences
         start_time = time.time()
         difference_shares = await self.diff_query_execute(nilql_query_embedding, closest_centroid)
         end_time = time.time()
-        asking_nilDB_time = round(end_time - start_time, 2)
-        print(f"Asking nilDB time: {asking_nilDB_time} sec")
+        print(f"Asking nilDB time: {end_time - start_time:.2f} sec")
 
         # Step 3: Compute distances and sort
         # 3.1 Group difference shares by ID
@@ -952,8 +952,7 @@ class NilDB:
             lambda share: share["difference"],
         )
         end_time = time.time()
-        group_shares_by_id_time = round(end_time - start_time, 2)
-        print(f"Group shares by id time: {group_shares_by_id_time} sec")
+        print(f"Group shares by id time: {end_time - start_time:.2f} sec")
         # 3.2 Transpose the lists for each _id
         start_time = time.time()
         difference_shares_by_id = {
@@ -961,8 +960,7 @@ class NilDB:
             for id, differences in difference_shares_by_id.items()
         }
         end_time = time.time()
-        transpose_list_time = round(end_time - start_time, 2)
-        print(f"Transpose list time: {transpose_list_time } sec")
+        print(f"Transpose list time: {end_time - start_time:.2f} sec")
         # 3.3 Decrypt and compute distances
         start_time = time.time()
         reconstructed = [
@@ -975,14 +973,12 @@ class NilDB:
             for id, difference_shares in difference_shares_by_id.items()
         ]
         end_time = time.time()
-        decrypt_time = round(end_time - start_time, 2)
-        print(f"Decrypt time: {decrypt_time } sec")
+        print(f"Decrypt time: {end_time - start_time:.2f} sec")
         # 3.4 Sort id list based on the corresponding distances
         start_time = time.time()
         sorted_ids = sorted(reconstructed, key=lambda x: x["distances"])
         end_time = time.time()
-        sort_id_time = round(end_time - start_time, 2)
-        print(f"Sort id list time: {sort_id_time } sec")
+        print(f"Sort id list time: {end_time - start_time:.2f} sec")
 
         # Step 4: Query the top num_chunks
         start_time = time.time()
@@ -990,8 +986,7 @@ class NilDB:
         # 4.1 Query top num_chunks
         chunk_shares = await self.chunk_query_execute(top_num_chunks_ids)
         end_time = time.time()
-        query_top_chunks_time = round(end_time - start_time, 2)
-        print(f"Query top chunks time: {query_top_chunks_time } sec")
+        print(f"Query top chunks time: {end_time - start_time:.2f} sec")
         # 4.2 Group chunk shares by ID
         start_time = time.time()
         chunk_shares_by_id = group_shares_by_id(
@@ -999,8 +994,7 @@ class NilDB:
             lambda share: share["chunk"],
         )
         end_time = time.time()
-        group_top_chunks_time = round(end_time - start_time, 2)
-        print(f"Group top chunks time: {group_top_chunks_time } sec")
+        print(f"Group top chunks time: {end_time - start_time:.2f} sec")
 
         # 4.3 Decrypt chunks
         start_time = time.time()
@@ -1009,8 +1003,7 @@ class NilDB:
             for id, chunk_shares in chunk_shares_by_id.items()
         ]
         end_time = time.time()
-        decrypt_chunks_time = round(end_time - start_time, 2)
-        print(f"Decrypt chunks time: {decrypt_chunks_time } sec")
+        print(f"Decrypt chunks time: {end_time - start_time:.2f} sec")
         return top_num_chunks
 
     def nilai_chat_completion(

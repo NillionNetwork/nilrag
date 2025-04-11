@@ -19,11 +19,11 @@ async def main():
     This script:
     1. Loads the nilDB configuration from a JSON file
     2. Generates JWT tokens for authentication
-    3. Creates a schema for storing cluster centroids, embeddings and chunks
-    4. Creates a schema for storing cluster centroids
+    3. Creates a schema for entries, each with chunk, embedding and cluster centroid it belongs to
+    4. Creates a schema for cluster centroids
     5. Creates a query for computing differences between embeddings
-    6. Creates a query for computing differences between embeddings with
-       filtered by a cluster centroid
+    6. Creates a query for computing differences between embeddings
+       filtered by a cluster's centroid
     7. Updates the configuration file with the generated IDs and tokens
     """
     parser = argparse.ArgumentParser(
