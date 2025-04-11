@@ -9,6 +9,7 @@ import time
 
 from nilrag.config import load_nil_db_config
 from nilrag.nildb_requests import ChatCompletionConfig
+from nilrag.util import generate_embeddings_huggingface
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
 DEFAULT_PROMPT = "Who is Danielle Miller?"
@@ -50,10 +51,17 @@ async def main():
     print(nil_db)
     print()
 
+    #Generate query embedding
+    start_time = time.time()
+    query_embedding = generate_embeddings_huggingface(args.prompt)
+    end_time = time.time()
+    embedding_query_generation_time = round(end_time - start_time, 2)
+    print(f"Embedding query generation time: {embedding_query_generation_time} sec")
+
     # Check if clustering was performed
     print("Starting cluster check...")
     start_time = time.time()
-    num_clusters, closest_centroid = await nil_db.check_clustering_and_get_closest_centroid(args.prompt)
+    num_clusters, closest_centroid = await nil_db.get_closest_centroid(query_embedding)
     cluster_check_time = time.time() - start_time
     if num_clusters > 1 and closest_centroid is not None:
         print(f"Clustering was performed - found {num_clusters} clusters and closest centroid to query")
@@ -63,8 +71,7 @@ async def main():
 
     print("Perform nilRAG...")
     start_time = time.time()
-    query = args.prompt
-    top_chunks = await nil_db.top_num_chunks_execute(query, 2, closest_centroid)
+    top_chunks = await nil_db.top_num_chunks_execute(query_embedding, 2, closest_centroid)
     end_time = time.time()
     print(json.dumps(top_chunks, indent=4))
     print(f"Query took {end_time - start_time:.2f} seconds")
