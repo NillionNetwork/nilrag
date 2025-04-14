@@ -888,11 +888,32 @@ class NilDB:
             print(f"Error checking clusters and finding closest centroid: {str(e)}")
             return 0, None
     
+    # pylint: disable=too-many-locals    
     async def top_num_chunks_execute(
             self, query: str,
             num_chunks: int
             ) -> List:
+        """
+        Retrieves the top `num_chunks` most relevant data chunks for a given query.
 
+        It performs the following steps:
+        1. Generates embeddings for the input query.
+        2. Encrypts the query embeddings.
+        3. Computes the difference between the encrypted query embeddings and stored data
+        embeddings.
+        4. Decrypts the differences to compute distances.
+        5. Identifies and retrieves the top `num_chunks` data chunks that are most relevant to
+        the query.
+
+        Args:
+            query (str): The input query string for which relevant data chunks are to be retrieved.
+            num_chunks (int): The number of top relevant data chunks to retrieve.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries, each containing:
+                - `_id` (Any): The unique identifier of the data chunk.
+                - `distances` (float): The computed distance between the query and the data chunk.
+        """
         # Check input format
         if query is None:
             if not isinstance(query, str):
@@ -992,7 +1013,6 @@ class NilDB:
             print(f"Time to decrypt: {decrypt_time_sec:.2f} seconds ")
             print(f"Time to sort id list: {sort_id_list_time_sec:.2f} seconds ")
             print(f"Time to query top chunks: {query_top_chunks_time_sec:.2f} seconds ")
-
         
         return top_num_chunks
 
