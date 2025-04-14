@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
-from nilrag.util import get_closest_centroid
 
 import aiohttp
 import jwt
@@ -18,7 +17,12 @@ import requests
 from ecdsa import SECP256k1, SigningKey
 
 from .util import (decrypt_float_list, encrypt_float_list,
-                   generate_embeddings_huggingface, group_shares_by_id)
+                   generate_embeddings_huggingface, group_shares_by_id,
+                   get_closest_centroid)
+
+# Benchmark
+ENABLE_BENCHMARK = True  # set to False to disable
+
 
 # Constants
 TIMEOUT = 3600
@@ -37,8 +41,6 @@ class ChatCompletionConfig:
     temperature: float = 0.7
     max_tokens: int = 2048
     stream: bool = False
-    filter: dict = None
-
 
 class Node:  # pylint: disable=too-few-public-methods
     """
@@ -56,7 +58,6 @@ class Node:  # pylint: disable=too-few-public-methods
         diff_query_id (str, optional): ID of the differences query for this node
         clusters_schema_id (str, optional): ID of the schema of clusters associated with this node
         clusters_diff_query_id (str, optional): ID of the differences query with a filter for this node
-
     """
 
     def __init__(
@@ -668,7 +669,7 @@ class NilDB:
                 ]
             batch_size (int, optional): Number of documents to upload in each batch.
                 Defaults to 100.
-            labels (list[int]): List of labels given for each emedding. 
+            labels (list[int]): List of labels given for each embedding. 
                 Defaults to None.
             centroids (list[int]): List of clusters centroids when clustering is performed.
                 Defaults to None.
@@ -877,7 +878,7 @@ class NilDB:
             # Get centroids from the first node's result
             clusters_data = results[0].get("data", [])
             if not clusters_data:
-                #No clusters found 
+                # No clusters found 
                 return 0, None
             num_clusters = len(clusters_data)
             centroids = [centroid["cluster_centroid"] for centroid in clusters_data]
@@ -889,9 +890,8 @@ class NilDB:
             
     # pylint: disable=too-many-locals
     async def top_num_chunks_execute(
-            self, query_embedding: np.ndarray,
-            num_chunks: int,
-            closest_centroid: list[int] = None
+            self, query: str,
+            num_chunks: int
             ) -> List:
         """
         Retrieves the top `num_chunks` most relevant data chunks for a given query.
@@ -915,12 +915,11 @@ class NilDB:
                 - `distances` (float): The computed distance between the query and the data chunk.
         """
         # Check input format
-        if query_embedding is None:
-            if not isinstance(query_embedding, np.ndarray):
-                raise TypeError("Query embedding must be a np.array")
+        if query is None:
+            if not isinstance(query, str):
+                raise TypeError("Prompt must be a string")
 
         # Initialize secret keys
-        start_time = time.time()
         num_parties = len(self.nodes)
         additive_key = nilql.ClusterKey.generate(
             {"nodes": [{}] * num_parties}, {"sum": True}
@@ -928,41 +927,48 @@ class NilDB:
         xor_key = nilql.ClusterKey.generate(
             {"nodes": [{}] * num_parties}, {"store": True}
         )
-        end_time = time.time()
-        print(f"Secret keys initialization time: {end_time - start_time:.2f} sec")
-        # Step 1: Encrypt query embedding.
-        # Note: one query embedding np.array is assumed.
-        start_time = time.time()
+        # Step 1: Encrypt query embedding and get closest centroid
+        # Note: one string query is assumed.
+        # 1.1 Generate query embedding
+        if ENABLE_BENCHMARK: start_time = time.time()
+        query_embedding = generate_embeddings_huggingface(query)
+        if ENABLE_BENCHMARK: generate_query_embedding_time_sec = time.time() - start_time
+        # 1.2 Check if clustering was performed and (if existing) get closest centroid
+        print("Starting cluster check...")
+        if ENABLE_BENCHMARK: start_time = time.time()
+        num_clusters, closest_centroid = await self.get_closest_centroid(query_embedding)
+        if ENABLE_BENCHMARK: cluster_check_and_get_closest_centroid_time_sec = time.time() - start_time
+        if num_clusters > 1 and closest_centroid is not None:
+            print(f"Clustering was performed - found {num_clusters} clusters and closest centroid to query")
+        else:
+            print("No clustering was performed")
+        # 1.3 Encrypt query embedding
+        if ENABLE_BENCHMARK: start_time = time.time()
         nilql_query_embedding = encrypt_float_list(additive_key, query_embedding)
-        end_time = time.time()
-        print(f"Encrypting query embedding time: {end_time - start_time:.2f} sec")
-
+        if ENABLE_BENCHMARK: encrypt_querry_embedding_time_sec = time.time() - start_time
 
         # Step 2: Ask NilDB to compute the differences
-        start_time = time.time()
+        if ENABLE_BENCHMARK: start_time = time.time()
         difference_shares = await self.diff_query_execute(nilql_query_embedding, closest_centroid)
-        end_time = time.time()
-        print(f"Asking nilDB time: {end_time - start_time:.2f} sec")
+        if ENABLE_BENCHMARK: asking_nilDB_time_sec= time.time() -start_time
 
         # Step 3: Compute distances and sort
         # 3.1 Group difference shares by ID
-        start_time = time.time()
+        if ENABLE_BENCHMARK: start_time = time.time()
         difference_shares_by_id = group_shares_by_id(
             difference_shares,  # type: ignore
             lambda share: share["difference"],
         )
-        end_time = time.time()
-        print(f"Group shares by id time: {end_time - start_time:.2f} sec")
+        if ENABLE_BENCHMARK: group_shares_by_id_time_sec = time.time() - start_time
         # 3.2 Transpose the lists for each _id
-        start_time = time.time()
+        if ENABLE_BENCHMARK: start_time = time.time()
         difference_shares_by_id = {
             id: list(map(list, zip(*differences)))
             for id, differences in difference_shares_by_id.items()
         }
-        end_time = time.time()
-        print(f"Transpose list time: {end_time - start_time:.2f} sec")
+        if ENABLE_BENCHMARK: transpose_list_time_sec = time.time() - start_time
         # 3.3 Decrypt and compute distances
-        start_time = time.time()
+        if ENABLE_BENCHMARK: start_time = time.time()
         reconstructed = [
             {
                 "_id": id,
@@ -972,44 +978,48 @@ class NilDB:
             }
             for id, difference_shares in difference_shares_by_id.items()
         ]
-        end_time = time.time()
-        print(f"Decrypt time: {end_time - start_time:.2f} sec")
+        if ENABLE_BENCHMARK: decrypt_time_sec = end_time = time.time() -start_time
         # 3.4 Sort id list based on the corresponding distances
-        start_time = time.time()
+        if ENABLE_BENCHMARK: start_time = time.time()
         sorted_ids = sorted(reconstructed, key=lambda x: x["distances"])
-        end_time = time.time()
-        print(f"Sort id list time: {end_time - start_time:.2f} sec")
+        if ENABLE_BENCHMARK: sort_id_list_time_sec = time.time() - start_time
 
         # Step 4: Query the top num_chunks
-        start_time = time.time()
+        if ENABLE_BENCHMARK: start_time = time.time()
         top_num_chunks_ids = [item["_id"] for item in sorted_ids[:num_chunks]]
         # 4.1 Query top num_chunks
         chunk_shares = await self.chunk_query_execute(top_num_chunks_ids)
-        end_time = time.time()
-        print(f"Query top chunks time: {end_time - start_time:.2f} sec")
+        if ENABLE_BENCHMARK: query_top_chunks_time_sec  = time.time() -start_time
         # 4.2 Group chunk shares by ID
-        start_time = time.time()
         chunk_shares_by_id = group_shares_by_id(
             chunk_shares,  # type: ignore
             lambda share: share["chunk"],
         )
-        end_time = time.time()
-        print(f"Group top chunks time: {end_time - start_time:.2f} sec")
-
         # 4.3 Decrypt chunks
-        start_time = time.time()
         top_num_chunks = [
             {"_id": id, "distances": nilql.decrypt(xor_key, chunk_shares)}
             for id, chunk_shares in chunk_shares_by_id.items()
         ]
-        end_time = time.time()
-        print(f"Decrypt chunks time: {end_time - start_time:.2f} sec")
+
+        #Print benchmarks, if enabled
+        if ENABLE_BENCHMARK:
+            print(f"Performance break down")
+            print(f"Time to generate query embedding: {generate_query_embedding_time_sec:.2f} seconds ")
+            print(f"Time to check clustering and (if existing) get closest centroid: {cluster_check_and_get_closest_centroid_time_sec:.2f} seconds ")
+            print(f"Time to encrypt query embedding: {encrypt_querry_embedding_time_sec:.2f} seconds ")
+            print(f"Time to ask nilDB to compute the differences: {asking_nilDB_time_sec:.2f} seconds ")
+            print(f"Time to group shares by Id: {group_shares_by_id_time_sec:.2f} seconds ")
+            print(f"Time to transpose list: {transpose_list_time_sec:.2f} seconds ")
+            print(f"Time to decrypt: {decrypt_time_sec:.2f} seconds ")
+            print(f"Time to sort id list: {sort_id_list_time_sec:.2f} seconds ")
+            print(f"Time to query top chunks: {query_top_chunks_time_sec:.2f} seconds ")
+
+        
         return top_num_chunks
 
     def nilai_chat_completion(
         self,
         config: ChatCompletionConfig,
-        closest_centroid: list[int] = None,
     ) -> dict:
         """
         Query the chat completion endpoint of the nilai API.
@@ -1023,15 +1033,6 @@ class NilDB:
         """
         import time
         start_time = time.time()
-        
-        # Debug prints for filtering
-        print("Chat completion configuration:")
-        if config.filter:
-            print("Filter is active:")
-            print(f"Filtering by cluster_centroid: {config.filter['cluster_centroid'][:5]}...")
-            print(f"Number of nodes: {len(self.nodes)}")
-        else:
-            print("No filter active - searching all documents")
 
         # Ensure URL format
         nilai_url = config.nilai_url.rstrip("/") + "/v1/chat/completions"
@@ -1063,19 +1064,12 @@ class NilDB:
                     "bearer_token": node.bearer_token,
                     "schema_id": node.schema_id,
                     "diff_query_id": node.diff_query_id,
+                    "clusters_schema_id": node.clusters_schema_id,
+                    "cluster_diff_query_id": node.cluster_diff_query_id,
                 }
                 for node in self.nodes
-            ],
-            "filter": config.filter,
+            ]
         }
-        if closest_centroid is not None:
-            nilrag["closest_centroid"] = closest_centroid
-        # Debug print the full nilrag payload
-        print("Nilrag payload:")
-        print(f"Number of nodes: {len(nilrag['nodes'])}")
-        print(f"Filter: {nilrag['filter']}")
-        if closest_centroid:
-            print(f"Closest centroid (first 5 values): {closest_centroid[:5]}...")
 
         # Construct payload
         payload = {
