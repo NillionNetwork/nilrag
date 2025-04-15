@@ -119,12 +119,22 @@ fill these out later.
 You are all set to create your first schema and query for RAG. At the minimum,
 they should look like:
 1. `schema`: which is the structure of the data that the data owner will store.
-    In this case we have `embedding` (`vector<integer>`) and `chunk` (`string`).
-    Each data owner will upload multiple `embedding`s and `chunk`.
+    In this case each entry has a `chunk` (`string`), an `embedding` (`vector<integer>`)
+    and, optionally, the `cluster_centroid` (`vector<integer>`) where
+    the `embedding` belongs. Each data owner will upload multiple `chunk`s
+    and `embedding`s, and optionally, `cluster_centroid`s.
 2. `query`: This is the nilDB query that will compute the differences under
     MPC between the stored data owner embeddings and the client's embedding.
+3. `clusters_schema`: is a structure of data for the data owner store 
+    `cluster_centroid`s when clustering is performed.
+    Each data owner will, optionally, upload multiple `cluster_centroid`s.
+4. `cluster_query`: This is the nilDB query that will compute the differences under
+    MPC between the stored data owner embeddings filtered by `cluster_centroid`
+    and the client's embedding.
 
-We have an example that creates a schema and a query, run it as:
+
+We have an example that creates a schema, a query, a clusters_schema,
+and a cluster_query, run it as:
 ```shell
 # Use default config file
 uv run examples/1.init_schema_query.py
@@ -132,7 +142,8 @@ uv run examples/1.init_schema_query.py
 # Or specify a custom config file
 uv run examples/1.init_schema_query.py --config /path/to/your/config.json
 ```
-This, will fill out `bearer_token`, `schema_id`, and `diff_query_id` in your
+This, will fill out `bearer_token`, `schema_id`, `diff_query_id`,
+`clusters_schema_id`, and `custer_diff_query_id` in your
 config file. Verify that it has been populated successfully.
 
 
@@ -143,11 +154,11 @@ instance. We provide an example of how to do this in
 
 By running the script, the documents are uploaded to the nilDB instance in secret-shared form:
 ```shell
-# Use default config and data file
+# Use default config, data file, and no clustering
 uv run examples/2.data_owner_upload.py
 
-# Or specify custom config and data files
-uv run examples/2.data_owner_upload.py --config /path/to/config.json --file /path/to/data.txt
+# Or specify custom config, data files, and number of cluster to produce to store the data
+uv run examples/2.data_owner_upload.py --config /path/to/config.json --file /path/to/data.txt --clusters NUMBER_CLUSTERS
 ```
 
 ## 3. Client Query
@@ -170,4 +181,89 @@ uv run examples/3.client_query.py --config /path/to/config.json --prompt "Your c
 ```shell
 # Run a specific test file
 uv run -m unittest test.rag
+```
+
+## Flowchart
+
+### Full flow with no clustering
+
+Schematically, this shows the full flow from initializing schemas to making queries, in the case where no clustering is performed by the Data Owner at the time of uploading data to nilDB.
+
+```mermaid
+graph LR
+    %% Swimlanes
+    subgraph Client
+        A1[Prompt]
+        A2[Response]
+    end
+
+    subgraph nilAI
+        B1[Prompt]
+        B2[Prompt]
+        B3[Model]
+    end
+
+    subgraph nilDB
+        C1[Schema]
+        C2[Clusters Schema]
+    end
+
+    subgraph DataOwner
+        D1[Data]
+    end
+
+    %% Connections
+    A1 -- 3: Send prompt --> B1
+    B1 -- 4: Compute closest centroid --> C2
+    C2 -- 5: Send nothing --> B2
+    B2 -- 6: Make query --> C1
+    C1 -- 7: Send context --> B3
+    B3 -- 8: Send response --> A2
+
+    %% Data upload flow
+    D1 -- 1: Initialize schemas --> nilDB
+    D1 -- 2a: Upload data --> C1
+```
+
+### Full flow with clustering
+
+This shows the full flow from initializing schemas to making queries, in the case where clustering is performed by the Data Owner at the time of uploading data to nilDB.
+
+
+```mermaid
+graph LR
+    %% Swimlanes
+    subgraph Client
+        A1[Prompt]
+        A2[Response]
+    end
+
+    subgraph nilAI
+        B1[Prompt]
+        B2[Prompt + closest centroid]
+        B3[Model]
+    end
+
+    subgraph nilDB
+        C1[Schema]
+        C2[Clusters Schema]
+    end
+
+    subgraph DataOwner
+        D1[Data]
+    end
+
+    %% Connections
+    A1 -- 3: Send prompt --> B1
+    B1 -- 4: Compute closest centroid --> C2
+    C2 -- 5: Send closest centroid --> B2
+    B2 -- 6: Make query filtered by closest centroid --> C1
+    C1 -- 7: Send context --> B3
+    B3 -- 8: Send response --> A2
+
+    %% Data upload flow
+    D1 -- 1: Initialize schemas --> nilDB
+    D1 -- 2a: Upload data --> C1
+    D1 -- 2b: Upload centroids --> C2
+
 ```

@@ -5,21 +5,29 @@
             "node_id": "did:nil:testnet:nillion1qfrl8nje3nvwh6cryj63mz2y6gsdptvn07nx8v",
             "bearer_token": "",
             "schema_id": "",
-            "diff_query_id": ""
+            "diff_query_id": "",
+            "clusters_schema_id": "",
+            "cluster_diff_query_id": ""
         },
         {
             "url": "https://nildb-p3mx.nillion.network/api/v1",
             "node_id": "did:nil:testnet:nillion1uak7fgsp69kzfhdd6lfqv69fnzh3lprg2mp3mx",
             "bearer_token": "",
             "schema_id": "",
-            "diff_query_id": ""
+            "diff_query_id": "",
+            "clusters_schema_id": "",
+            "cluster_diff_query_id": ""
+
         },
         {
             "url": "https://nildb-rugk.nillion.network/api/v1",
             "node_id": "did:nil:testnet:nillion1kfremrp2mryxrynx66etjl8s7wazxc3rssrugk",
             "bearer_token": "",
             "schema_id": "",
-            "diff_query_id": ""
+            "diff_query_id": "",
+            "clusters_schema_id": "",
+            "cluster_diff_query_id": ""
+
         }
     ],
     "org_secret_key": "Add you SECRET_KEY here",

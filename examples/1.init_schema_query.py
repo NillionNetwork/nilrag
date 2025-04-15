@@ -19,9 +19,12 @@ async def main():
     This script:
     1. Loads the nilDB configuration from a JSON file
     2. Generates JWT tokens for authentication
-    3. Creates a schema for storing embeddings and chunks
-    4. Creates a query for computing differences between embeddings
-    5. Updates the configuration file with the generated IDs and tokens
+    3. Creates a schema for entries, each with chunk, embedding and cluster centroid it belongs to
+    4. Creates a schema for cluster centroids
+    5. Creates a query for computing differences between embeddings
+    6. Creates a query for computing differences between embeddings
+       filtered by a cluster's centroid
+    7. Updates the configuration file with the generated IDs and tokens
     """
     parser = argparse.ArgumentParser(
         description="Initialize schema and query for nilDB"
@@ -47,11 +50,27 @@ async def main():
     end_time = time.time()
     print(f"Schema initialized successfully in {end_time - start_time:.2f} seconds")
 
+    print("Initializing clusters' schema...")
+    start_time = time.time()
+    clusters_schema_id = await nil_db.init_clusters_schema()
+    end_time = time.time()
+    print(
+        f"Clusters' schema initialized successfully in {end_time - start_time:.2f} seconds"
+    )
+
     print("Initializing query...")
     start_time = time.time()
     diff_query_id = await nil_db.init_diff_query()
     end_time = time.time()
     print(f"Query initialized successfully in {end_time - start_time:.2f} seconds")
+
+    print("Initializing query for clustered data...")
+    start_time = time.time()
+    cluster_diff_query_id = await nil_db.init_cluster_diff_query()
+    end_time = time.time()
+    print(
+        f"Cluster query initialized successfully in {end_time - start_time:.2f} seconds"
+    )
 
     # Update config file with new IDs and tokens
     with open(args.config, "r", encoding="utf-8") as f:
@@ -59,6 +78,8 @@ async def main():
     for node_data, jwt in zip(data["nodes"], jwts):
         node_data["schema_id"] = schema_id
         node_data["diff_query_id"] = diff_query_id
+        node_data["clusters_schema_id"] = clusters_schema_id
+        node_data["cluster_diff_query_id"] = cluster_diff_query_id
         node_data["bearer_token"] = jwt
     with open(args.config, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
