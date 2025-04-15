@@ -54,7 +54,9 @@ async def main():
     start_time = time.time()
     clusters_schema_id = await nil_db.init_clusters_schema()
     end_time = time.time()
-    print(f"Clusters' schema initialized successfully in {end_time - start_time:.2f} seconds")
+    print(
+        f"Clusters' schema initialized successfully in {end_time - start_time:.2f} seconds"
+    )
 
     print("Initializing query...")
     start_time = time.time()
@@ -66,7 +68,9 @@ async def main():
     start_time = time.time()
     cluster_diff_query_id = await nil_db.init_cluster_diff_query()
     end_time = time.time()
-    print(f"Cluster query initialized successfully in {end_time - start_time:.2f} seconds")
+    print(
+        f"Cluster query initialized successfully in {end_time - start_time:.2f} seconds"
+    )
 
     # Update config file with new IDs and tokens
     with open(args.config, "r", encoding="utf-8") as f:
