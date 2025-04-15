@@ -11,7 +11,7 @@ from nilrag.config import load_nil_db_config
 from nilrag.nildb_requests import ChatCompletionConfig
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
-DEFAULT_PROMPT = "Who is Danielle Miller?"
+DEFAULT_PROMPT = "Who is Michelle Ross?"
 DEFAULT_FAKE_QUERIES = 0
 
 
