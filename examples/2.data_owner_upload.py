@@ -9,9 +9,8 @@ import time
 import nilql
 
 from nilrag.config import load_nil_db_config
-from nilrag.util import (create_chunks, encrypt_float_list,
-                         generate_embeddings_huggingface, load_file,
-                         cluster_embeddings)
+from nilrag.util import (cluster_embeddings, create_chunks, encrypt_float_list,
+                         generate_embeddings_huggingface, load_file)
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
 DEFAULT_FILE_PATH = "examples/data/20-fake.txt"
@@ -46,7 +45,7 @@ async def main():
         "--clusters",
         type=int,
         default=1,
-        help="Number of clusters to use (default: {DEFAULT_NUMBER_CLUSTERS})"
+        help="Number of clusters to use (default: {DEFAULT_NUMBER_CLUSTERS})",
     )
     args = parser.parse_args()
 
@@ -96,10 +95,12 @@ async def main():
         print(f"Data clustered in {end_time - start_time:.2f} seconds")
         print("Uploading data with clustering labels...")
         start_time = time.time()
-        await nil_db.upload_data(embeddings_shares, chunks_shares, labels = labels, centroids = centroids)
+        await nil_db.upload_data(
+            embeddings_shares, chunks_shares, labels=labels, centroids=centroids
+        )
         end_time = time.time()
         print(f"Data uploaded in {end_time - start_time:.2f} seconds")
-    else :
+    else:
         print("Uploading data...")
         start_time = time.time()
         await nil_db.upload_data(embeddings_shares, chunks_shares)

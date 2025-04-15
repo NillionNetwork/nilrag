@@ -17,6 +17,8 @@ def load_nil_db_config(
     require_diff_query_id: bool = False,
     require_clusters_schema_id: bool = False,
     require_cluster_diff_query_id: bool = False,
+    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-positional-arguments
 ) -> Tuple[NilDB, Optional[str]]:
     """
     Load nilDB configuration from JSON file.
