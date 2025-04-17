@@ -11,14 +11,14 @@ from typing import List, Tuple
 import nilql
 import numpy as np
 
+from nilrag.util import (create_chunks, decrypt_float_list, encrypt_float_list,
+                         find_closest_chunks, generate_embeddings_huggingface,
+                         load_file)
 from src.nilrag.config import load_nil_db_config
-from src.nilrag.util import (create_chunks, decrypt_float_list,
-                             encrypt_float_list, find_closest_chunks,
-                             generate_embeddings_huggingface, load_file)
 
 DEFAULT_CONFIG = "test/nildb_config.json"
 DEFAULT_PROMPT = "Who is Danielle Miller?"
-RUN_OPTIONAL_TESTS = False
+RUN_OPTIONAL_TESTS = True
 
 
 @dataclass

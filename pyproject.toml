@@ -16,6 +16,7 @@ dependencies = [
     "nilql==0.0.0a12",
     "numpy<2.0.0",
     "PyJWT[crypto]~=2.10.1",
+    "secretvaults==0.0.0a8",
     "sentence-transformers>=3.3.1",
 ]
 
