@@ -104,7 +104,7 @@ def find_closest_chunks(
     return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
 
 
-def get_closest_centroid(
+def compute_closest_centroid(
     query_embedding: np.ndarray, centroids: list[int]
 ) -> list[int]:
     """

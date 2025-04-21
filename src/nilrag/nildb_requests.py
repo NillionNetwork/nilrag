@@ -17,8 +17,8 @@ import numpy as np
 import requests
 from ecdsa import SECP256k1, SigningKey
 
-from .util import (decrypt_float_list, encrypt_float_list,
-                   generate_embeddings_huggingface, get_closest_centroid,
+from .util import (compute_closest_centroid, decrypt_float_list,
+                   encrypt_float_list, generate_embeddings_huggingface,
                    group_shares_by_id)
 
 # Benchmark
@@ -651,8 +651,8 @@ class NilDB:
         lst_embedding_shares: list[list[int]],
         lst_chunk_shares: list[list[bytes]],
         batch_size: int = 100,
-        labels: list[int] | None = None,
-        centroids: list[int] | None = None,
+        labels: Optional[list[int]] = None,
+        centroids: Optional[list[int]] = None,
     ) -> None:
         """
         Upload embeddings and chunks to all nilDB nodes asynchronously in batches.
@@ -708,7 +708,7 @@ class NilDB:
             AssertionError: If number of embeddings and chunks don't match
             ValueError: If upload fails on any nilDB node
         """
-        await self.check_inputs_to_upload(
+        await check_inputs_to_upload(
             lst_embedding_shares, lst_chunk_shares, labels, centroids
         )
 
@@ -743,7 +743,7 @@ class NilDB:
                         batch_entry["cluster_centroid"] = centroids[labels[doc_idx]]
                     # Add this entry to the batch data
                     batch_data.append(batch_entry)
-                tasks.append(self.upload_to_node(node, batch_data))
+                tasks.append(upload_to_node(node, batch_data))
             try:
                 results = await asyncio.gather(*tasks)
                 print(f"Successfully uploaded batch {batch_start//batch_size + 1}")
@@ -799,90 +799,20 @@ class NilDB:
                     return result
 
         try:
-            # Read from all nodes
-            tasks = [read_clusters_from_node(node) for node in self.nodes]
-            results = await asyncio.gather(*tasks)
-            # Get centroids from the first node's result
-            clusters_data = results[0].get("data", [])
+            # Read only from the first node
+            result = await read_clusters_from_node(self.nodes[0])
+            clusters_data = result.get("data", [])
+
             if not clusters_data:
                 # No clusters found
                 return 0, None
             num_clusters = len(clusters_data)
             centroids = [centroid["cluster_centroid"] for centroid in clusters_data]
-            closest_centroid = get_closest_centroid(query_embedding, centroids)
+            closest_centroid = compute_closest_centroid(query_embedding, centroids)
             return num_clusters, closest_centroid
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
             print(f"Error checking clusters and finding closest centroid: {str(e)}")
             return 0, None
-
-    async def check_inputs_to_upload(
-        self,
-        embedding_shares: list,
-        chunk_shares: list,
-        labels: list | None,
-        centroids: list | None,
-    ) -> None:
-        """
-        Checks if the number of embeddings and chunks is the same
-        when there is clustering, check if each embedding was assigned a label.
-
-        """
-        # Check sizes: same number of embeddings and chunks
-        assert len(embedding_shares) == len(
-            chunk_shares
-        ), f"Mismatch: {len(embedding_shares)} embeddings vs {len(chunk_shares)} chunks."
-        # Check that the number of labels of each cluster matches the number of embeddings,
-        # if labels are provided
-        if labels is not None:
-            assert len(labels) == len(
-                embedding_shares
-            ), f"Mismatch: {len(labels)} labels vs {len(embedding_shares)} embeddings."
-        # Check that the number of centroids is correct if provided
-        if centroids is not None:
-            assert (
-                len(centroids) > 1
-            ), "Centroids must be provided when clustering is enabled."
-
-    async def upload_to_node(self, node: Node, batch_data: list[dict]):
-        """Upload a batch of data to a specific node."""
-        url = node.url + "/data/create"
-        headers = {
-            "Authorization": "Bearer " + str(node.bearer_token),
-            "Content-Type": "application/json",
-        }
-
-        payload = {
-            "schema": node.schema_id,
-            "data": batch_data,
-        }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    raise ValueError(
-                        f"Error in POST request: {response.status}, {error_text}"
-                    )
-                return await response.json()
-
-    async def upload_centroids_to_node(self, node: Node, centroids_data: list[int]):
-        """Upload centroids to the clusters schema."""
-        url = node.url + "/data/create"
-        headers = {
-            "Authorization": "Bearer " + str(node.bearer_token),
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "schema": node.clusters_schema_id,
-            "data": centroids_data,
-        }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    raise ValueError(
-                        f"Error in POST request: {response.status}, {error_text}"
-                    )
-                return await response.json()
 
     async def upload_all_centroids(self, centroids: list[int]) -> None:
         """
@@ -900,7 +830,7 @@ class NilDB:
                 {"_id": centroid_ids[centroid_idx], "cluster_centroid": centroid}
                 for centroid_idx, centroid in enumerate(centroids)
             ]
-            tasks.append(self.upload_centroids_to_node(node, centroids_data))
+            tasks.append(upload_centroids_to_node(node, centroids_data))
 
         # Gather the results of all upload tasks
         try:
@@ -1140,3 +1070,74 @@ class NilDB:
             raise RuntimeError(
                 f"An error occurred while querying the chat completion endpoint: {str(e)}"
             ) from e
+
+
+async def check_inputs_to_upload(
+    embedding_shares: list,
+    chunk_shares: list,
+    labels: list | None,
+    centroids: list | None,
+) -> None:
+    """
+    Checks if the number of embeddings and chunks is the same
+    when there is clustering, check if each embedding was assigned a label.
+
+    """
+    # Check sizes: same number of embeddings and chunks
+    assert len(embedding_shares) == len(
+        chunk_shares
+    ), f"Mismatch: {len(embedding_shares)} embeddings vs {len(chunk_shares)} chunks."
+    # Check that the number of labels of each cluster matches the number of embeddings,
+    # if labels are provided
+    if labels is not None:
+        assert len(labels) == len(
+            embedding_shares
+        ), f"Mismatch: {len(labels)} labels vs {len(embedding_shares)} embeddings."
+    # Check that the number of centroids is correct if provided
+    if centroids is not None:
+        assert (
+            len(centroids) > 1
+        ), "Centroids must be provided when clustering is enabled."
+
+
+async def upload_to_node(node: Node, batch_data: list[dict]):
+    """Upload a batch of data to a specific node."""
+    url = node.url + "/data/create"
+    headers = {
+        "Authorization": "Bearer " + str(node.bearer_token),
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "schema": node.schema_id,
+        "data": batch_data,
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise ValueError(
+                    f"Error in POST request: {response.status}, {error_text}"
+                )
+            return await response.json()
+
+
+async def upload_centroids_to_node(node: Node, centroids_data: list[int]):
+    """Upload centroids to the clusters schema."""
+    url = node.url + "/data/create"
+    headers = {
+        "Authorization": "Bearer " + str(node.bearer_token),
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "schema": node.clusters_schema_id,
+        "data": centroids_data,
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise ValueError(
+                    f"Error in POST request: {response.status}, {error_text}"
+                )
+            return await response.json()
