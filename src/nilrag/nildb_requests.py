@@ -21,30 +21,30 @@ from .util import (compute_closest_centroid, decrypt_float_list,
                    encrypt_float_list, generate_embeddings_huggingface,
                    group_shares_by_id)
 
-# Benchmark
-ENABLE_BENCHMARK = True  # set to False to disable
 # Constants
 TIMEOUT = 3600
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 
 
-def benchmark_time(func, *args, **kwargs):
+def benchmark_time(func, *args, benchmark: Optional[bool] = False, **kwargs):
     """Measures the execution time of a sync function."""
-    if ENABLE_BENCHMARK:
+    if benchmark:
         start_time = time.time()
     result = func(*args, **kwargs)
-    if ENABLE_BENCHMARK:
+    if benchmark:
         return result, time.time() - start_time
     return result, None
 
 
-async def benchmark_time_async(func, *args, **kwargs):
+async def benchmark_time_async(
+    func, *args, benchmark: Optional[bool] = False, **kwargs
+):
     """Measures the execution time of an async function."""
-    if ENABLE_BENCHMARK:
+    if benchmark:
         start_time = time.time()
     result = await func(*args, **kwargs)
-    if ENABLE_BENCHMARK:
+    if benchmark:
         return result, time.time() - start_time
     return result, None
 
@@ -849,7 +849,12 @@ class NilDB:
             raise
 
     # pylint: disable=too-many-locals
-    async def top_num_chunks_execute(self, query: str, num_chunks: int) -> List:
+    async def top_num_chunks_execute(
+        self,
+        query: str,
+        num_chunks: int,
+        benchmark: Optional[bool] = False,
+    ) -> List:
         """
         Retrieves the top `num_chunks` most relevant data chunks for a given query.
         
@@ -887,44 +892,45 @@ class NilDB:
         # Note: one string query is assumed.
         # 1.1 Generate query embedding
         query_embedding, generate_query_embedding_time_sec = benchmark_time(
-            generate_embeddings_huggingface, query
+            generate_embeddings_huggingface, query, benchmark=benchmark
         )
 
-        # 1.2 Check if clustering was performed and (if existing) get closest centroid
+        # 1.2 Check if clustering was performed and (if existing) gets closest centroid
         (
-            num_clusters,
+            _,
             closest_centroid,
         ), cluster_check_and_get_closest_centroid_time_sec = await benchmark_time_async(
-            self.get_closest_centroid, query_embedding
+            self.get_closest_centroid, query_embedding, benchmark=benchmark
         )
-        if num_clusters > 1 and closest_centroid is not None:
-            print(
-                f"Clustering was performed: found {num_clusters} clusters\
-                and closest centroid to query"
-            )
-        else:
-            print("No clustering was performed")
+
         # 1.3 Encrypt query embedding
         nilql_query_embedding, encrypt_query_embedding_time_sec = benchmark_time(
-            encrypt_float_list, additive_key, query_embedding
+            encrypt_float_list, additive_key, query_embedding, benchmark=benchmark
         )
 
         # Step 2: Ask NilDB to compute the differences
         difference_shares, asking_nildb_time_sec = await benchmark_time_async(
-            self.diff_query_execute, nilql_query_embedding, closest_centroid
+            self.diff_query_execute,
+            nilql_query_embedding,
+            closest_centroid,
+            benchmark=benchmark,
         )
 
         # Step 3: Compute distances and sort
         # 3.1 Group difference shares by ID
         difference_shares_by_id, group_shares_by_id_time_sec = benchmark_time(
-            group_shares_by_id, difference_shares, lambda share: share["difference"]
+            group_shares_by_id,
+            difference_shares,
+            lambda share: share["difference"],
+            benchmark=benchmark,
         )
         # 3.2 Transpose the lists for each _id
         difference_shares_by_id, transpose_list_time_sec = benchmark_time(
             lambda: {
                 id: list(map(list, zip(*differences)))
                 for id, differences in difference_shares_by_id.items()
-            }
+            },
+            benchmark=benchmark,
         )
         # 3.3 Decrypt and compute distances
         reconstructed, decrypt_time_sec = benchmark_time(
@@ -936,18 +942,20 @@ class NilDB:
                     ),
                 }
                 for id, difference_shares in difference_shares_by_id.items()
-            ]
+            ],
+            benchmark=benchmark,
         )
         # 3.4 Sort id list based on the corresponding distances
         sorted_ids = sorted(reconstructed, key=lambda x: x["distances"])
 
         # Step 4: Query the top num_chunks
         top_num_chunks_ids, top_num_chunks_ids_time_sec = benchmark_time(
-            lambda: [item["_id"] for item in sorted_ids[:num_chunks]]
+            lambda: [item["_id"] for item in sorted_ids[:num_chunks]],
+            benchmark=benchmark,
         )
         # 4.1 Query top num_chunks
         chunk_shares, query_top_chunks_time_sec = await benchmark_time_async(
-            self.chunk_query_execute, top_num_chunks_ids
+            self.chunk_query_execute, top_num_chunks_ids, benchmark=benchmark
         )
         # 4.2 Group chunk shares by ID
         chunk_shares_by_id = group_shares_by_id(
@@ -961,7 +969,7 @@ class NilDB:
         ]
 
         # Print benchmarks, if enabled
-        if ENABLE_BENCHMARK:
+        if benchmark:
             print(
                 f"""Performance breakdown. Time to:\
             \n generate query embedding: {generate_query_embedding_time_sec:.2f} seconds \

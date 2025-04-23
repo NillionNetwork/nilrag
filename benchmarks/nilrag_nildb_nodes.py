@@ -1,5 +1,5 @@
 """
-Example of server performing RAG with nilDB nodes.
+Benchmarks of server performing RAG with nilDB nodes.
 """
 
 import argparse
@@ -12,6 +12,7 @@ from nilrag.nildb_requests import ChatCompletionConfig
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
 DEFAULT_PROMPT = "Who is Michelle Ross?"
+ENABLE_BENCHMARKS = True
 
 
 async def main():
@@ -52,7 +53,7 @@ async def main():
 
     print("Perform nilRAG...")
     start_time = time.time()
-    top_chunks = await nil_db.top_num_chunks_execute(args.prompt, 2)
+    top_chunks = await nil_db.top_num_chunks_execute(args.prompt, 2, ENABLE_BENCHMARKS)
     end_time = time.time()
     print(json.dumps(top_chunks, indent=4))
     print(f"Query took {end_time - start_time:.2f} seconds")

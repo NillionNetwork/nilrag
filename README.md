@@ -176,6 +176,18 @@ uv run examples/3.client_query.py
 uv run examples/3.client_query.py --config /path/to/config.json --prompt "Your custom query here"
 ```
 
+## Running Benchmarks on RAG using nilDB nodes
+After having nilDB initialized, documents uploaded, the
+client run benchmarks to measure the time it takes to perform RAG using nilDB nodes.
+The response is the most relevant data chunks for a given query.
+
+```shell
+# Use default config and prompt
+uv run benchmarks/nilrag_nildb_nodes.py
+
+# Or specify custom config and prompt
+uv run benchmarks/nilrag_nildb_nodes.py --config /path/to/config.json --prompt "Your custom query here"
+```
 
 ## Running Tests
 ```shell
