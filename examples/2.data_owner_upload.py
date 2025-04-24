@@ -9,11 +9,12 @@ import time
 import nilql
 
 from nilrag.config import load_nil_db_config
-from nilrag.util import (create_chunks, encrypt_float_list,
+from nilrag.util import (cluster_embeddings, create_chunks, encrypt_float_list,
                          generate_embeddings_huggingface, load_file)
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
 DEFAULT_FILE_PATH = "examples/data/20-fake.txt"
+DEFAULT_NUMBER_CLUSTERS = 1
 
 
 async def main():
@@ -40,6 +41,12 @@ async def main():
         default=DEFAULT_FILE_PATH,
         help=f"Path to data file to upload (default: {DEFAULT_FILE_PATH})",
     )
+    parser.add_argument(
+        "--clusters",
+        type=int,
+        default=DEFAULT_NUMBER_CLUSTERS,
+        help="Number of clusters to use (default: {DEFAULT_NUMBER_CLUSTERS})",
+    )
     args = parser.parse_args()
 
     # Load NilDB configuration
@@ -47,6 +54,7 @@ async def main():
         args.config,
         require_bearer_token=True,
         require_schema_id=True,
+        require_clusters_schema_id=True,
     )
     print(nil_db)
     print()
@@ -78,11 +86,26 @@ async def main():
     print(f"Data encrypted in {end_time - start_time:.2f} seconds")
 
     # Upload encrypted data to nilDB
-    print("Uploading data...")
-    start_time = time.time()
-    await nil_db.upload_data(embeddings_shares, chunks_shares)
-    end_time = time.time()
-    print(f"Data uploaded in {end_time - start_time:.2f} seconds")
+    if args.clusters > 1:
+        # Clustering embeddings
+        print(f"Clustering the data in {args.clusters} clusters...")
+        start_time = time.time()
+        labels, centroids = cluster_embeddings(embeddings, args.clusters)
+        end_time = time.time()
+        print(f"Data clustered in {end_time - start_time:.2f} seconds")
+        print("Uploading data with clustering labels...")
+        start_time = time.time()
+        await nil_db.upload_data(
+            embeddings_shares, chunks_shares, labels=labels, centroids=centroids
+        )
+        end_time = time.time()
+        print(f"Data uploaded in {end_time - start_time:.2f} seconds")
+    else:
+        print("Uploading data...")
+        start_time = time.time()
+        await nil_db.upload_data(embeddings_shares, chunks_shares)
+        end_time = time.time()
+        print(f"Data uploaded in {end_time - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":

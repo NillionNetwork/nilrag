@@ -1,5 +1,5 @@
 """
-Example of querying nilDB with NilAI using nilRAG.
+Benchmarks of server performing RAG with nilDB nodes.
 """
 
 import argparse
@@ -12,20 +12,19 @@ from nilrag.nildb_requests import ChatCompletionConfig
 
 DEFAULT_CONFIG = "examples/nildb_config.json"
 DEFAULT_PROMPT = "Who is Michelle Ross?"
-DEFAULT_FAKE_QUERIES = 0
+ENABLE_BENCHMARKS = True
 
 
 async def main():
     """
-    Query nilDB with NilAI using nilRAG.
+    Performing RAG using nilDB nodes. This is the RAG logic to be run on nilAI.
 
     This script:
     1. Loads the nilDB configuration
-    2. Creates a chat completion configuration
-    3. Sends the query to nilAI with nilRAG
-    4. Displays the response and timing information
+    2. Performs RAG using nilDB nodes
+    3. Displays the response and timing information
     """
-    parser = argparse.ArgumentParser(description="Query nilDB with NilAI using nilRAG")
+    parser = argparse.ArgumentParser(description="Query nilDB using nilRAG")
     parser.add_argument(
         "--config",
         type=str,
@@ -52,20 +51,11 @@ async def main():
     print(nil_db)
     print()
 
-    print("Query nilAI with nilRAG...")
+    print("Perform nilRAG...")
     start_time = time.time()
-    config = ChatCompletionConfig(
-        nilai_url="https://nilai-a779.nillion.network",
-        token="Nillion2025",
-        messages=[{"role": "user", "content": args.prompt}],
-        model="meta-llama/Llama-3.1-8B-Instruct",
-        temperature=0.2,
-        max_tokens=2048,
-        stream=False,
-    )
-    response = nil_db.nilai_chat_completion(config)
+    top_chunks = await nil_db.top_num_chunks_execute(args.prompt, 2, ENABLE_BENCHMARKS)
     end_time = time.time()
-    print(json.dumps(response, indent=4))
+    print(json.dumps(top_chunks, indent=4))
     print(f"Query took {end_time - start_time:.2f} seconds")
 
 

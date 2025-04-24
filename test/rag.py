@@ -17,7 +17,7 @@ from src.nilrag.util import (create_chunks, decrypt_float_list,
                              generate_embeddings_huggingface, load_file)
 
 DEFAULT_CONFIG = "test/nildb_config.json"
-DEFAULT_PROMPT = "Who is Danielle Miller?"
+DEFAULT_PROMPT = "Who is Michelle Ross?"
 RUN_OPTIONAL_TESTS = False
 
 
