@@ -5,12 +5,14 @@ Benchmarks of server performing RAG with nilDB nodes.
 import argparse
 import asyncio
 import json
+import os
 import time
 
-from nilrag.config import load_nil_db_config
-from nilrag.nildb_requests import ChatCompletionConfig
+from dotenv import load_dotenv
 
-DEFAULT_CONFIG = "examples/nildb_config.json"
+from nilrag.nildb.org_config import ORG_CONFIG
+from nilrag.rag_vault import RAGVault
+
 DEFAULT_PROMPT = "Who is Michelle Ross?"
 ENABLE_BENCHMARKS = True
 
@@ -26,12 +28,6 @@ async def main():
     """
     parser = argparse.ArgumentParser(description="Query nilDB using nilRAG")
     parser.add_argument(
-        "--config",
-        type=str,
-        default=DEFAULT_CONFIG,
-        help=f"Path to nilDB config file (default: {DEFAULT_CONFIG})",
-    )
-    parser.add_argument(
         "--prompt",
         type=str,
         default=DEFAULT_PROMPT,
@@ -39,21 +35,25 @@ async def main():
     )
     args = parser.parse_args()
 
-    # Load NilDB configuration
-    nil_db, _ = load_nil_db_config(
-        args.config,
-        require_bearer_token=True,
-        require_schema_id=True,
-        require_diff_query_id=True,
-        require_clusters_schema_id=True,
-        require_cluster_diff_query_id=True,
+    # Load environment variables
+    load_dotenv(override=True)
+
+    schema_id = os.getenv("SCHEMA_ID")
+    clusters_schema_id = os.getenv("CLUSTERS_SCHEMA_ID")
+    subtract_query_id = os.getenv("QUERY_ID")
+
+    # Initialize vault
+    rag = await RAGVault.create(
+        ORG_CONFIG["nodes"],
+        ORG_CONFIG["org_credentials"],
+        schema_id=schema_id,
+        clusters_schema_id=clusters_schema_id,
+        subtract_query_id=subtract_query_id,
     )
-    print(nil_db)
-    print()
 
     print("Perform nilRAG...")
     start_time = time.time()
-    top_chunks = await nil_db.top_num_chunks_execute(args.prompt, 2, ENABLE_BENCHMARKS)
+    top_chunks = await rag.top_num_chunks_execute(args.prompt, 2, ENABLE_BENCHMARKS)
     end_time = time.time()
     print(json.dumps(top_chunks, indent=4))
     print(f"Query took {end_time - start_time:.2f} seconds")

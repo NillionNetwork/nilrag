@@ -1,0 +1,69 @@
+{
+    "variables": {
+        "query_embedding": {
+            "description": "The query embedding",
+            "type": "array",
+            "items": {
+                "type": "number"
+            }
+        },
+        "closest_centroid": {
+            "description": "The closest centroid to match",
+            "type": "array",
+            "items": {
+                "type": "number"
+            }
+        }
+    },
+    "pipeline": [
+        {
+            "$addFields": {
+                "query_embedding": "##query_embedding"
+            }
+        },
+        {
+            "$match": {
+                "$expr": {
+                    "$eq": [
+                        "$cluster_centroid",
+                        "##closest_centroid"
+                    ]
+                }
+            }
+        },
+        {
+            "$project": {
+                "_id": 1,
+                "difference": {
+                    "$map": {
+                        "input": {
+                            "$zip": {
+                                "inputs": [
+                                    "$embedding",
+                                    "$query_embedding"
+                                ]
+                            }
+                        },
+                        "as": "pair",
+                        "in": {
+                            "$subtract": [
+                                {
+                                    "$arrayElemAt": [
+                                        "$$pair",
+                                        0
+                                    ]
+                                },
+                                {
+                                    "$arrayElemAt": [
+                                        "$$pair",
+                                        1
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,39 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "NILLION USERS",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "_id": {
+                "type": "string",
+                "format": "uuid",
+                "coerce": true
+            },
+            "cluster_centroid": {
+                "description": "Embedding of the clusters' centroid",
+                "type": "array",
+                "items": {
+                    "type": "integer"
+                }
+            },
+            "embedding": {
+                "description": "Chunks embeddings",
+                "type": "array",
+                "items": {
+                    "type": "integer"
+                }
+            },
+            "chunk": {
+                "type": "string",
+                "description": "Chunks of text inserted by the user"
+            }
+        },
+        "required": [
+            "_id",
+            "embedding",
+            "chunk"
+        ],
+        "additionalProperties": false
+    }
+}
