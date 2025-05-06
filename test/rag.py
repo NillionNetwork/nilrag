@@ -19,7 +19,6 @@ from nilrag.utils.process import (create_chunks,
                                   generate_embeddings_huggingface, load_file)
 from nilrag.utils.transform import decrypt_float_list, encrypt_float_list
 
-DEFAULT_CONFIG = "test/nildb_config.json"
 DEFAULT_PROMPT = "Who is Michelle Ross?"
 RUN_OPTIONAL_TESTS = False
 

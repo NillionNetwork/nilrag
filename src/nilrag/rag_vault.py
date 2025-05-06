@@ -1,5 +1,5 @@
 """
-This module provides the RAGVault class, which is a wrapper around the SecretVaultWrapper, 
+This module provides the RAGVault class, which is a wrapper around the SecretVaultWrapper,
 NilDBInit, and NilDBOps classes.
 """
 
@@ -7,7 +7,7 @@ import asyncio
 import os
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import aiohttp
 import nilql
@@ -16,14 +16,11 @@ import requests
 from dotenv import set_key
 from secretvaults import SecretVaultWrapper
 
-from nilrag.utils.process import (create_chunks,
-                                  generate_embeddings_huggingface, load_file)
-from nilrag.utils.transform import encrypt_float_list
-
 from .nildb.initialization import NilDBInit
 from .nildb.operations import NilDBOps
 from .utils.benchmark import benchmark_time, benchmark_time_async
-from .utils.process import generate_embeddings_huggingface
+from .utils.process import (create_chunks, generate_embeddings_huggingface,
+                            load_file)
 from .utils.transform import (decrypt_float_list, encrypt_float_list,
                               group_shares_by_id, to_fixed_point)
 
@@ -146,7 +143,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         file_path: str,
         chunk_size: int = 50,
         overlap: int = 10,
-    ) -> tuple[list[list[float]], list[list[bytes]], list[list[bytes]]]:
+    ) -> Tuple[List[List[float]], List[List[bytes]], List[List[bytes]]]:
         """
         Process RAG data.
 
@@ -165,7 +162,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             {"nodes": [{}] * num_nodes}, {"store": True}
         )
 
-        # Load and process input file
+        # Load and process the input file
         paragraphs = load_file(file_path)
         chunks = create_chunks(paragraphs, chunk_size=chunk_size, overlap=overlap)
 
@@ -180,41 +177,47 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
 
         return embeddings, embeddings_shares, chunks_shares
 
-    async def get_closest_centroid(
-        self, query_embedding: np.ndarray
-    ) -> tuple[int, Optional[List[float]]]:
+    async def get_closest_centroids(
+        self, query_embedding: np.ndarray, k: int = 1
+    ) -> Tuple[int, Optional[List[int]]]:
         """
         Check if clustering was performed and return the number of clusters.
 
+        Args:
+            query_embedding (np.ndarray): Embedding vector of the query
+            k (int, optional): Number of closest centroids to return. Defaults to 1.
+
         Returns:
             int: Number of clusters found (0 if no clustering was performed)
+            list[int]: List of closest centroids (None if no clustering was performed)
         """
 
         try:
             # Check if clustering was performed
             if not self.clusters_schema_id:
                 return 0, None
-            # Read from first node
+            # Read from the first node
             node = self.nodes[0]
             schema_id = self.clusters_schema_id
             data_filter = {}
-            clusters_data = await self.read_from_node(
-                node, schema_id, data_filter
-            )
+            clusters_data = await self.read_from_node(node, schema_id, data_filter)
             if not clusters_data:
                 # No clusters found
                 return 0, None
-            num_clusters = len(clusters_data)
             centroids = [centroid["cluster_centroid"] for centroid in clusters_data]
-            closest_centroid = compute_closest_centroid(query_embedding, centroids)
-            return num_clusters, closest_centroid
+            closest_centroids = compute_closest_centroids(query_embedding, centroids, k)
+            return len(clusters_data), closest_centroids
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
             print(f"Error checking clusters and finding closest centroid: {str(e)}")
             return 0, None
 
     # pylint: disable=too-many-locals
     async def top_num_chunks_execute(
-        self, query: str, num_chunks: int, enable_benchmark: bool = False
+        self,
+        query: str,
+        num_chunks: int,
+        enable_benchmark: bool = False,
+        num_clusters: int = 1,
     ) -> List:
         """
         Retrieves the top `num_chunks` most relevant data chunks for a given query.
@@ -231,14 +234,15 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         Args:
             query (str): The input query string for which relevant data chunks are to be retrieved.
             num_chunks (int): The number of top relevant data chunks to retrieve.
-            enable_benchmark (bool): Whether to enable benchmarking.
+            enable_benchmark (bool, optional): Whether to benchmark the process. Defaults to False.
+            num_clusters (int, optional): The number of clusters to consider. Defaults to 1.
 
         Returns:
             List[Dict[str, Any]]: A list of dictionaries, each containing:
                 - `_id` (Any): The unique identifier of the data chunk.
                 - `distances` (float): The computed distance between the query and the data chunk.
         """
-        # Check input format
+        # Check the input format
         if query is None and not isinstance(query, str):
             raise TypeError("Prompt must be a string")
 
@@ -257,12 +261,15 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             generate_embeddings_huggingface, query, enable=enable_benchmark
         )
 
-        # 1.2 Check if clustering was performed and (if existing) get closest centroid
+        # 1.2 Check if clustering was performed and (if existing) get the closest centroids
         (
             num_clusters,
-            closest_centroid,
+            closest_centroids,
         ), cluster_check_and_get_closest_centroid_time_sec = await benchmark_time_async(
-            self.get_closest_centroid, query_embedding, enable=enable_benchmark
+            self.get_closest_centroids,
+            query_embedding,
+            num_clusters,
+            enable=enable_benchmark,
         )
 
         # 1.3 Encrypt query embedding
@@ -274,7 +281,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         difference_shares, asking_nildb_time_sec = await benchmark_time_async(
             self.execute_subtract_query,
             nilql_query_embedding,
-            closest_centroid,
+            closest_centroids,
             enable=enable_benchmark,
         )
 
@@ -328,7 +335,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         )
         # 4.3 Decrypt chunks
         top_num_chunks = [
-            {"_id": id, "distances": nilql.decrypt(xor_key, chunk_shares)}
+            {"_id": id, "chunks": nilql.decrypt(xor_key, chunk_shares)}
             for id, chunk_shares in chunk_shares_by_id.items()
         ]
 
@@ -479,25 +486,28 @@ def find_closest_chunks(
     return [(chunks[idx], distances[idx]) for idx in sorted_indices[:top_k]]
 
 
-def compute_closest_centroid(
-    query_embedding: np.ndarray, centroids: list[int]
-) -> list[int]:
+def compute_closest_centroids(
+    query_embedding: np.ndarray, centroids: List[int], k: int = 1
+) -> List[int]:
     """
-    Find the closest centroid for a given query embedding.
+    Find the k closest centroids for a given query embedding.
+
     Args:
         query_embedding (np.ndarray): The embedding vector of the query in floating-point format
         centroids (list): List of centroid vectors in fixed-point format
+        k (int, optional): Number of closest centroids to return. Defaults to 1.
+
     Returns:
-        int: The index of the closest centroid
+        list[int]: The indices of the closest centroids
     """
     # Convert query embedding to fixed-point for comparison
     query_embedding_fixed = [to_fixed_point(val) for val in query_embedding]
 
-    # Find closest centroid
-    # closest_centroid_idx = None
-    closest_centroid_idx = min(
+    # Find closest centroids
+    closest = sorted(
         range(len(centroids)),
         key=lambda i: euclidean_distance(query_embedding_fixed, centroids[i]),
     )
 
-    return centroids[closest_centroid_idx]
+    # Take top k
+    return closest[:k]

@@ -113,6 +113,10 @@ Portal](https://sv-sda-registration.replit.app/).
 - After you get your nilDB credentials, copy `.env.sample` to `.env` and store your credentials.
 - **Note for Data Owners:** If you haven't configured your schemas yet, you can safely disregard the following: `SCHEMA_ID`, `CLUSTERS_SCHEMA_ID`, and `QUERY_ID`.
 
+```shell
+cp .env.sample .env
+```
+
 You are now ready to create your initial schema and query template for RAG. The data owner has the option to use clustering, which involves a trade-off between speed and accuracy. At a minimum,
 they should look like:
 1. `schema`: which is the structure of the data that the data owner will store.
@@ -128,7 +132,10 @@ they should look like:
 
 #### Examples
 
-Please refer to the [examples/init](examples/init) folder for two examples showing how to initialize a schema, a query, and a `clusters_schema` (if clustering is enabled). One example uses the built-in bootstrap functions, while the other illustrates how to initialize the schemas and query separately. Both methods will populate the `SCHEMA_ID`, `CLUSTERS_SCHEMA_ID`, and `QUERY_ID` fields in your `.env` file. Ensure that these fields have been populated successfully.
+Please refer to the [examples/init](examples/init) folder for an example showing how to initialize a schema, a query, 
+and a `clusters_schema` (if clustering is enabled). One example uses the built-in bootstrap functions, while the other 
+illustrates how to initialize the schemas and query separately. Both methods will populate the `SCHEMA_ID`, 
+`CLUSTERS_SCHEMA_ID`, and `QUERY_ID` fields in your `.env` file. Ensure that these fields have been populated successfully.
 
 ##### Bootstrap
 ```shell
@@ -138,15 +145,6 @@ uv run examples/init/bootstrap.py
 # Or specify a custom env file and clustering option
 uv run examples/init/bootstrap.py --env-path .env --with-clustering False
 ```
-##### Manual
-```shell
-# Use default env file and clustering
-uv run examples/init/manual.py
-
-# Or specify a custom env file and clustering option
-uv run examples/init/manual.py --env-path .env --with-clustering False
-```
-
 
 ### Uploading Documents
 After initialization, the data owner can upload their documents to nilDB. We provide an example of how to do this in

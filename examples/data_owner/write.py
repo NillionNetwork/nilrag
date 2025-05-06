@@ -41,7 +41,7 @@ async def main():
         "--num-clusters",
         type=int,
         default=DEFAULT_NUMBER_CLUSTERS,
-        help="Number of clusters to use (default: {DEFAULT_NUMBER_CLUSTERS})",
+        help=f"Number of clusters to use (default: {DEFAULT_NUMBER_CLUSTERS})",
     )
     args = parser.parse_args()
 

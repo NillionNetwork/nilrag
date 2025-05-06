@@ -11,17 +11,14 @@
                 "coerce": true
             },
             "cluster_centroid": {
-                "description": "Embedding of the clusters' centroid",
-                "type": "array",
-                "items": {
-                    "type": "integer"
-                }
+                "description": "Clusters centroid",
+                "type": "number"
             },
             "embedding": {
                 "description": "Chunks embeddings",
                 "type": "array",
                 "items": {
-                    "type": "integer"
+                    "type": "number"
                 }
             },
             "chunk": {

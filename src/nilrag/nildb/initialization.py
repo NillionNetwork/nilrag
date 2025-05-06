@@ -82,7 +82,7 @@ class NilDBInit:
         Creates a new query on all nodes in the cluster concurrently for the subtraction operation.
 
         Args:
-            subtract_query_id (str, optional): A custom query ID. If not provided, a new UUID is 
+            subtract_query_id (str, optional): A custom query ID. If not provided, a new UUID is
                 generated.
 
         Returns:
