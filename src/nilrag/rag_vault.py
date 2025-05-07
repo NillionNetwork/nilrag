@@ -178,14 +178,14 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         return embeddings, embeddings_shares, chunks_shares
 
     async def get_closest_centroids(
-        self, query_embedding: np.ndarray, k: int = 1
+        self, query_embedding: np.ndarray, num_closest_centroids: int = 1
     ) -> Tuple[int, Optional[List[int]]]:
         """
         Check if clustering was performed and return the number of clusters.
 
         Args:
             query_embedding (np.ndarray): Embedding vector of the query
-            k (int, optional): Number of closest centroids to return. Defaults to 1.
+            num_closest_centroids (int, optional): Number of closest centroids to return. Defaults to 1.
 
         Returns:
             int: Number of clusters found (0 if no clustering was performed)
@@ -205,7 +205,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
                 # No clusters found
                 return 0, None
             centroids = [centroid["cluster_centroid"] for centroid in clusters_data]
-            closest_centroids = compute_closest_centroids(query_embedding, centroids, k)
+            closest_centroids = compute_closest_centroids(query_embedding, centroids, num_closest_centroids)
             return len(clusters_data), closest_centroids
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
             print(f"Error checking clusters and finding closest centroid: {str(e)}")
@@ -487,7 +487,7 @@ def find_closest_chunks(
 
 
 def compute_closest_centroids(
-    query_embedding: np.ndarray, centroids: List[int], k: int = 1
+    query_embedding: np.ndarray, centroids: List[int], num_closest_centroids: int = 1
 ) -> List[int]:
     """
     Find the k closest centroids for a given query embedding.
@@ -495,7 +495,7 @@ def compute_closest_centroids(
     Args:
         query_embedding (np.ndarray): The embedding vector of the query in floating-point format
         centroids (list): List of centroid vectors in fixed-point format
-        k (int, optional): Number of closest centroids to return. Defaults to 1.
+        num_closest_centroids (int, optional): Number of closest centroids to return. Defaults to 1.
 
     Returns:
         list[int]: The indices of the closest centroids
@@ -509,5 +509,5 @@ def compute_closest_centroids(
         key=lambda i: euclidean_distance(query_embedding_fixed, centroids[i]),
     )
 
-    # Take top k
-    return closest[:k]
+    # Take top closest
+    return closest[:num_closest_centroids]
