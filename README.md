@@ -155,8 +155,8 @@ By running the script, the documents are uploaded to the nilDB instance in secre
 # Use default env file and clustering with 2 clusters
 uv run examples/data_owner/write.py
 
-# Or specify custom config, data files, and number of cluster to produce to store the data
-uv run examples/data_owner/write.py --file /path/to/data.txt --clusters NUMBER_CLUSTERS
+# Or specify custom config, data files, number of clusters, and chunk size to store the data
+uv run examples/data_owner/write.py --file /path/to/data.txt --clusters NUMBER_CLUSTERS --chunk-size CHUNK_SIZE
 ```
 
 ## Client Query

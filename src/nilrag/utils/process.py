@@ -115,6 +115,6 @@ def cluster_embeddings(embeddings: np.ndarray, num_clusters: int):
     labels = kmeans.fit_predict(embeddings_array)
     centroids = kmeans.cluster_centers_
 
-    # Convert each centroid to fixed-point
+    # Convert each centroid to a fixed-point
     centroids = [[to_fixed_point(val) for val in centroid] for centroid in centroids]
     return labels, centroids
