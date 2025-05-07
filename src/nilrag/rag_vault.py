@@ -205,7 +205,9 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
                 # No clusters found
                 return 0, None
             centroids = [centroid["cluster_centroid"] for centroid in clusters_data]
-            closest_centroids = compute_closest_centroids(query_embedding, centroids, num_closest_centroids)
+            closest_centroids = compute_closest_centroids(
+                query_embedding, centroids, num_closest_centroids
+            )
             return len(clusters_data), closest_centroids
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
             print(f"Error checking clusters and finding closest centroid: {str(e)}")
