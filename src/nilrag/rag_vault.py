@@ -184,8 +184,8 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         Check if clustering was performed and return the number of clusters.
 
         Args:
-            query_embedding (np.ndarray): Embedding vector of the query
-            num_closest_centroids (int, optional): Number of closest centroids to return. Defaults to 1.
+            query_embedding (np.ndarray): Embedding vector of the query.
+            num_closest_centroids (int, optional): Number of closest centroids to return.
 
         Returns:
             int: Number of clusters found (0 if no clustering was performed)
@@ -497,7 +497,7 @@ def compute_closest_centroids(
     Args:
         query_embedding (np.ndarray): The embedding vector of the query in floating-point format
         centroids (list): List of centroid vectors in fixed-point format
-        num_closest_centroids (int, optional): Number of closest centroids to return. Defaults to 1.
+        num_closest_centroids (int, optional): Number of closest centroids to return.
 
     Returns:
         list[int]: The indices of the closest centroids
