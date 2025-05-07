@@ -7,8 +7,8 @@
                 "type": "number"
             }
         },
-        "closest_centroid": {
-            "description": "The closest centroid to match",
+        "closest_centroids": {
+            "description": "The closest centroids to match",
             "type": "array",
             "items": {
                 "type": "number"
@@ -24,9 +24,9 @@
         {
             "$match": {
                 "$expr": {
-                    "$eq": [
+                    "$in": [
                         "$cluster_centroid",
-                        "##closest_centroid"
+                        "##closest_centroids"
                     ]
                 }
             }

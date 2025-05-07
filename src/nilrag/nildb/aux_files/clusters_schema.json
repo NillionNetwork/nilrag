@@ -14,7 +14,7 @@
                 "description": "Embedding of the clusters centroid",
                 "type": "array",
                 "items": {
-                    "type": "integer"
+                    "type": "number"
                 }
             }
         },

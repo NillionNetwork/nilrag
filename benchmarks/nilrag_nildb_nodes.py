@@ -14,6 +14,8 @@ from nilrag.nildb.org_config import ORG_CONFIG
 from nilrag.rag_vault import RAGVault
 
 DEFAULT_PROMPT = "Who is Michelle Ross?"
+DEFAULT_NUM_CHUNKS = 2
+DEFAULT_NUM_CLUSTERS = 1
 ENABLE_BENCHMARKS = True
 
 
@@ -32,6 +34,18 @@ async def main():
         type=str,
         default=DEFAULT_PROMPT,
         help=f"Query prompt (default: {DEFAULT_PROMPT})",
+    )
+    parser.add_argument(
+     "--chunks",
+     type=int,
+     default=DEFAULT_NUM_CHUNKS,
+     help=f"Number of chunks to return (default: {DEFAULT_NUM_CHUNKS})",
+    )
+    parser.add_argument(
+     "--clusters",
+     type=int,
+     default=DEFAULT_NUM_CLUSTERS,
+     help=f"Number of clusters to search through (default: {DEFAULT_NUM_CLUSTERS})",
     )
     args = parser.parse_args()
 
@@ -53,7 +67,7 @@ async def main():
 
     print("Perform nilRAG...")
     start_time = time.time()
-    top_chunks = await rag.top_num_chunks_execute(args.prompt, 2, ENABLE_BENCHMARKS)
+    top_chunks = await rag.top_num_chunks_execute(args.prompt, args.chunks, ENABLE_BENCHMARKS, args.clusters)
     end_time = time.time()
     print(json.dumps(top_chunks, indent=4))
     print(f"Query took {end_time - start_time:.2f} seconds")

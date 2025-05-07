@@ -44,7 +44,7 @@ def to_fixed_point(value: float) -> int:
 
 def from_fixed_point(value: int) -> float:
     """
-    Convert a fixed-point value back to floating-point.
+    Convert a fixed-point value back to a floating-point.
 
     Args:
         value (int): Fixed-point value to convert

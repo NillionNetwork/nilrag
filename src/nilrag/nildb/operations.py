@@ -1,6 +1,6 @@
 # pylint: disable=no-member
 """
-This module provides the operations functions for nilDB, including data writing and query 
+This module provides the operations functions for nilDB, including data writing and query
 execution.
 """
 
@@ -13,7 +13,7 @@ from nilrag.utils.process import check_inputs_to_upload
 
 class NilDBOps:
     """
-    NilDBOps is a class that provides the operations functions for nilDB, including data 
+    NilDBOps is a class that provides the operations functions for nilDB, including data
     writing and query execution.
     """
 
@@ -98,7 +98,7 @@ class NilDBOps:
                         and centroids is not None
                         and len(centroids) > 1
                     ):
-                        batch_entry["cluster_centroid"] = centroids[labels[doc_idx]]
+                        batch_entry["cluster_centroid"] = int(labels[doc_idx])
                     # Add this entry to the batch data
                     batch_data.append(batch_entry)
                 rag_schema_id = self.schema_id
@@ -185,21 +185,21 @@ class NilDBOps:
 
     async def execute_subtract_query(
         self,
-        nilql_query_embedding: list[list[bytes]],
-        closest_centroid: list[int] | None = None,
+        nilql_query_embedding: List[List[bytes]],
+        closest_centroids: List[int] | None = None,
     ) -> List:
         """
         Execute the subtract query across all nilDB nodes asynchronously.
 
         Args:
-            nilql_query_embedding (list): Encrypted query embedding for all nilDB node.
-            closest_centroid (list): The closest centroid to filter by
+            nilql_query_embedding (list): Encrypted query embedding for all nilDB nodes.
+            closest_centroids (list, optional): The closest centroids to filter by.
 
         Returns:
             list: List of subtracted shares from each nilDB node.
 
         Raises:
-            ValueError: If query execution fails on any nilDB node
+            ValueError: If query execution fails on any nilDB node.
         """
         # Rearrange nilql_query_embedding to group by party
         query_embedding_shares = [
@@ -209,9 +209,9 @@ class NilDBOps:
 
         # Execute queries on all nodes in parallel
         tasks = []
-        closest_centroid_key_value = (
-            {"closest_centroid": closest_centroid}
-            if closest_centroid is not None
+        closest_centroids_key_value = (
+            {"closest_centroids": closest_centroids}
+            if closest_centroids is not None
             else {}
         )
         for node_index, node in enumerate(self.nodes):
@@ -219,7 +219,7 @@ class NilDBOps:
                 "id": self.subtract_query_id,
                 "variables": {
                     "query_embedding": query_embedding_shares[node_index],
-                    **closest_centroid_key_value,
+                    **closest_centroids_key_value,
                 },
             }
             task = self.execute_query_on_single_node(node, payload)
@@ -252,7 +252,7 @@ class NilDBOps:
 
         return difference_shares
 
-    async def read_chunk_from_nodes(self, chunk_ids: list[str]) -> List:
+    async def read_chunk_from_nodes(self, chunk_ids: List[str]) -> List:
         """
         Read chunks from all nilDB nodes asynchronously.
         """
