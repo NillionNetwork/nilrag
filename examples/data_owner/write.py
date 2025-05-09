@@ -15,7 +15,7 @@ from nilrag.rag_vault import RAGVault
 from nilrag.utils.process import cluster_embeddings
 
 DEFAULT_FILE_PATH = "examples/data/20-fake.txt"
-DEFAULT_NUMBER_CLUSTERS = 2
+DEFAULT_NUMBER_CLUSTERS = 0
 DEFAULT_CHUNK_SIZE = 50
 
 
@@ -39,7 +39,7 @@ async def main():
         help=f"Path to data file to upload (default: {DEFAULT_FILE_PATH})",
     )
     parser.add_argument(
-        "--clusters",
+        "--num-clusters",
         type=int,
         default=DEFAULT_NUMBER_CLUSTERS,
         help=f"Number of clusters to use (default: {DEFAULT_NUMBER_CLUSTERS})",
@@ -52,7 +52,7 @@ async def main():
     )
     args = parser.parse_args()
 
-    with_clustering = args.clusters > 1
+    with_clustering = args.num_clusters > 1
 
     # Load environment variables
     load_dotenv(override=True)
@@ -79,15 +79,15 @@ async def main():
     print(f"RAG data processed in {end_time - start_time:.2f} seconds")
 
     # Create clustering embeddings
-    if args.clusters > 1:
+    if args.num_clusters > 1:
         print("Starting clustering process:")
         print(f"    Number of embeddings: {len(embeddings)}")
-        print(f"    Requested number of clusters: {args.clusters}")
+        print(f"    Requested number of clusters: {args.num_clusters}")
         start_time = time.time()
-        labels, centroids = cluster_embeddings(embeddings, args.clusters)
+        labels, centroids = cluster_embeddings(embeddings, args.num_clusters)
         print(f"Data clustered in {end_time - start_time:.2f} seconds")
         print("Cluster sizes:")
-        for i in range(args.clusters):
+        for i in range(args.num_clusters):
             print(f"    Cluster {i}: {np.sum(labels == i)} documents")
     else:
         labels = None

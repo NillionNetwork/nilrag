@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from nilrag.nildb.org_config import ORG_CONFIG
 from nilrag.rag_vault import ChatCompletionConfig, RAGVault
 
-DEFAULT_PROMPT = "Who is Danielle Miller?"
+DEFAULT_PROMPT = "Who is Michelle Ross?"
 
 
 async def main():

@@ -139,12 +139,13 @@ illustrates how to initialize the schemas and query separately. Both methods wil
 
 ##### Bootstrap
 ```shell
-# Use default env file and clustering
+# Use default env file and no clustering
 uv run examples/init/bootstrap.py
 
 # Or specify a custom env file and clustering option
-uv run examples/init/bootstrap.py --env-path .env --with-clustering False
+uv run examples/init/bootstrap.py --env-path .env --with-clustering
 ```
+
 
 ### Uploading Documents
 After initialization, the data owner can upload their documents to nilDB. We provide an example of how to do this in
@@ -152,12 +153,22 @@ After initialization, the data owner can upload their documents to nilDB. We pro
 
 By running the script, the documents are uploaded to the nilDB instance in secret-shared form:
 ```shell
-# Use default env file and clustering with 2 clusters
+# Use default env file and no clustering
 uv run examples/data_owner/write.py
 
 # Or specify custom config, data files, number of clusters, and chunk size to store the data
-uv run examples/data_owner/write.py --file /path/to/data.txt --clusters NUMBER_CLUSTERS --chunk-size CHUNK_SIZE
+uv run examples/data_owner/write.py --file /path/to/data.txt --num-clusters NUMBER_CLUSTERS --chunk-size CHUNK_SIZE
 ```
+
+#### Delete all data
+We provide an example on how to delete all data (flush) from the schemas provided in nilDB. The cluster schema data is also deleted if `CLUSTERS_SCHEMA_ID` is not `None` or not the empty string.
+
+To run the flush example [flush example](examples/data_owner/flush.py), run the following command
+```shell
+# Use default env file and no clustering
+uv run examples/data_owner/flush.py
+```
+
 
 ## Client Query
 After having nilDB initialized, documents uploaded, and access to nilAI, the
@@ -211,13 +222,11 @@ graph LR
 
     subgraph nilAI
         B1[Prompt]
-        B2[Prompt]
         B3[Model]
     end
 
     subgraph nilDB
         C1[Schema]
-        C2[Clusters Schema]
     end
 
     subgraph DataOwner
@@ -226,15 +235,13 @@ graph LR
 
     %% Connections
     A1 -- 3: Send prompt --> B1
-    B1 -- 4: Compute closest centroid --> C2
-    C2 -- 5: Send nothing --> B2
-    B2 -- 6: Make query --> C1
-    C1 -- 7: Send context --> B3
-    B3 -- 8: Send response --> A2
+    B1 -- 4: Make query --> C1
+    C1 -- 5: Send context --> B3
+    B3 -- 6: Send response --> A2
 
     %% Data upload flow
     D1 -- 1: Initialize schemas --> nilDB
-    D1 -- 2a: Upload data --> C1
+    D1 -- 2: Upload data --> C1
 ```
 
 ### Full flow with clustering

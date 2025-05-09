@@ -308,6 +308,13 @@ class TestRAGMethods(unittest.IsolatedAsyncioTestCase):
         print(json.dumps(top_chunks, indent=4))
         print(f"Query took {end_time - start_time:.2f} seconds")
 
+        # Format top results as nilAI
+        formatted_results = "\n".join(
+            f"- {str(result['chunks'])}" for result in top_chunks
+        )
+
+        print(f"Relevant Context:\n{formatted_results}")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,8 +11,17 @@ from nilrag.rag_vault import RAGVault
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Bootstrap initialization script.")
-    parser.add_argument('--env-path', type=str, default=".env", help='Path to the environment file.')
-    parser.add_argument('--with-clustering', type=bool, default=True, help='Enable clustering.')
+    parser.add_argument(
+        "--env-path",
+        type=str,
+        default=".env",
+        help="Path to the environment file.",
+    )
+    parser.add_argument(
+        "--with-clustering",
+        action="store_true",
+        help="Enable clustering (default: off).",
+    )
     return parser.parse_args()
 
 args = parse_arguments()
