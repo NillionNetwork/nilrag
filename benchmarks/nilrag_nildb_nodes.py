@@ -36,16 +36,16 @@ async def main():
         help=f"Query prompt (default: {DEFAULT_PROMPT})",
     )
     parser.add_argument(
-     "--chunks",
-     type=int,
-     default=DEFAULT_NUM_CHUNKS,
-     help=f"Number of chunks to return (default: {DEFAULT_NUM_CHUNKS})",
+        "--chunks",
+        type=int,
+        default=DEFAULT_NUM_CHUNKS,
+        help=f"Number of chunks to return (default: {DEFAULT_NUM_CHUNKS})",
     )
     parser.add_argument(
-     "--clusters",
-     type=int,
-     default=DEFAULT_NUM_CLUSTERS,
-     help=f"Number of clusters to search through (default: {DEFAULT_NUM_CLUSTERS})",
+        "--clusters",
+        type=int,
+        default=DEFAULT_NUM_CLUSTERS,
+        help=f"Number of clusters to search through (default: {DEFAULT_NUM_CLUSTERS})",
     )
     args = parser.parse_args()
 
@@ -67,7 +67,9 @@ async def main():
 
     print("Perform nilRAG...")
     start_time = time.time()
-    top_chunks = await rag.top_num_chunks_execute(args.prompt, args.chunks, ENABLE_BENCHMARKS, args.clusters)
+    top_chunks = await rag.top_num_chunks_execute(
+        args.prompt, args.chunks, ENABLE_BENCHMARKS, args.clusters
+    )
     end_time = time.time()
     print(json.dumps(top_chunks, indent=4))
     print(f"Query took {end_time - start_time:.2f} seconds")

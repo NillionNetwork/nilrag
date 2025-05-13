@@ -5,6 +5,7 @@ execution.
 """
 
 import asyncio
+from collections import defaultdict
 from typing import Any, Dict, List
 from uuid import uuid4
 
@@ -187,7 +188,7 @@ class NilDBOps:
         self,
         nilql_query_embedding: List[List[bytes]],
         closest_centroids: List[int] | None = None,
-    ) -> List:
+    ) -> Dict[str, List[int]]:
         """
         Execute the subtract query across all nilDB nodes asynchronously.
 
@@ -228,29 +229,11 @@ class NilDBOps:
         results_from_all_nodes = await asyncio.gather(*tasks)
 
         # Groups records from different nodes by _id field
-        difference_shares = []
+        shares_by_id = defaultdict(list)
         for node_result in results_from_all_nodes:
-            for record in node_result.get("data", []):
-                # Find a group that already contains a record with the same _id
-                group = next(
-                    (
-                        g
-                        for g in difference_shares
-                        if any(
-                            share.get("_id") == record.get("_id")
-                            for share in g["shares"]
-                        )
-                    ),
-                    None,
-                )
-                if group:
-                    group["shares"].append(record)
-                else:
-                    difference_shares.append(
-                        {"shares": [record], "record_index": record.get("_id")}
-                    )
-
-        return difference_shares
+            for share in node_result.get("data", []):
+                shares_by_id[share["_id"]].append(share["difference"])
+        return shares_by_id
 
     async def read_chunk_from_nodes(self, chunk_ids: List[str]) -> List:
         """

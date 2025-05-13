@@ -24,6 +24,7 @@ def parse_arguments():
     )
     return parser.parse_args()
 
+
 args = parse_arguments()
 ENV_PATH = args.env_path
 WITH_CLUSTERING = args.with_clustering
