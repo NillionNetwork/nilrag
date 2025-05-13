@@ -7,7 +7,7 @@ import asyncio
 import os
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import aiohttp
 import nilql
@@ -22,7 +22,7 @@ from .utils.benchmark import benchmark_time, benchmark_time_async
 from .utils.process import (create_chunks, generate_embeddings_huggingface,
                             load_file)
 from .utils.transform import (decrypt_float_list, encrypt_float_list,
-                              group_shares_by_id, to_fixed_point)
+                              from_fixed_point, group_shares_by_id)
 
 # Constants
 TIMEOUT = 3600
@@ -205,6 +205,8 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
                 # No clusters found
                 return 0, None
             centroids = [centroid["cluster_centroid"] for centroid in clusters_data]
+            indices = [centroid["index"] for centroid in clusters_data]
+            centroids = [centroids[i] for i in indices]
             closest_centroids = compute_closest_centroids(
                 query_embedding, centroids, num_closest_centroids
             )
@@ -244,6 +246,9 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
                 - `_id` (Any): The unique identifier of the data chunk.
                 - `distances` (float): The computed distance between the query and the data chunk.
         """
+        # Add 20-second delay for testing
+        await asyncio.sleep(20)
+        
         # Check the input format
         if query is None and not isinstance(query, str):
             raise TypeError("Prompt must be a string")
@@ -280,7 +285,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         )
 
         # Step 2: Ask NilDB to compute the differences
-        difference_shares, asking_nildb_time_sec = await benchmark_time_async(
+        difference_shares_by_id, asking_nildb_time_sec = await benchmark_time_async(
             self.execute_subtract_query,
             nilql_query_embedding,
             closest_centroids,
@@ -288,15 +293,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         )
 
         # Step 3: Compute distances and sort
-        # 3.1 Group difference shares by ID
-        difference_shares_by_id, group_shares_by_id_time_sec = benchmark_time(
-            group_shares_by_id,
-            difference_shares,
-            lambda share: share["difference"],
-            enable=enable_benchmark,
-        )
-
-        # 3.2 Transpose the lists for each _id
+        # 3.1 Transpose the lists for each _id
         difference_shares_by_id, transpose_list_time_sec = benchmark_time(
             lambda: {
                 id: list(map(list, zip(*differences)))
@@ -304,7 +301,8 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             },
             enable=enable_benchmark,
         )
-        # 3.3 Decrypt and compute distances
+
+        # 3.2 Decrypt and compute distances
         reconstructed, decrypt_time_sec = benchmark_time(
             lambda: [
                 {
@@ -317,7 +315,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             ],
             enable=enable_benchmark,
         )
-        # 3.4 Sort id list based on the corresponding distances
+        # 3.3 Sort id list based on the corresponding distances
         sorted_ids = sorted(reconstructed, key=lambda x: x["distances"])
 
         # Step 4: Query the top num_chunks
@@ -330,11 +328,13 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         chunk_shares, query_top_chunks_time_sec = await benchmark_time_async(
             self.read_chunk_from_nodes, top_num_chunks_ids, enable=enable_benchmark
         )
+
         # 4.2 Group chunk shares by ID
         chunk_shares_by_id = group_shares_by_id(
             chunk_shares,  # type: ignore
             lambda share: share["chunk"],
         )
+
         # 4.3 Decrypt chunks
         top_num_chunks = [
             {"_id": id, "chunks": nilql.decrypt(xor_key, chunk_shares)}
@@ -351,7 +351,6 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             \n Number of clusters found: {num_clusters}\
             \n encrypt query embedding: {encrypt_query_embedding_time_sec:.2f} seconds\
             \n ask nilDB to compute the differences: {asking_nildb_time_sec:.2f} seconds\
-            \n group shares by Id: {group_shares_by_id_time_sec:.2f} seconds\
             \n transpose list: {transpose_list_time_sec:.2f} seconds\
             \n decrypt: {decrypt_time_sec:.2f} seconds\
             \n get top chunks ids: {top_num_chunks_ids_time_sec:.2f} seconds\
@@ -454,7 +453,9 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             ) from e
 
 
-def euclidean_distance(a: list, b: list):
+def euclidean_distance(
+    a: Union[List[int], np.ndarray], b: Union[List[int], np.ndarray]
+):
     """
     Calculate Euclidean distance between two vectors.
 
@@ -489,7 +490,7 @@ def find_closest_chunks(
 
 
 def compute_closest_centroids(
-    query_embedding: np.ndarray, centroids: List[int], num_closest_centroids: int = 1
+    query_embedding: np.ndarray, centroids: List[List[int]], num_closest_centroids: int
 ) -> List[int]:
     """
     Find the k closest centroids for a given query embedding.
@@ -497,18 +498,17 @@ def compute_closest_centroids(
     Args:
         query_embedding (np.ndarray): The embedding vector of the query in floating-point format
         centroids (list): List of centroid vectors in fixed-point format
-        num_closest_centroids (int, optional): Number of closest centroids to return.
+        num_closest_centroids (int): Number of closest centroids to return.
 
     Returns:
         list[int]: The indices of the closest centroids
     """
-    # Convert query embedding to fixed-point for comparison
-    query_embedding_fixed = [to_fixed_point(val) for val in query_embedding]
-
     # Find closest centroids
     closest = sorted(
         range(len(centroids)),
-        key=lambda i: euclidean_distance(query_embedding_fixed, centroids[i]),
+        key=lambda i: euclidean_distance(
+            query_embedding, from_fixed_point(np.array(centroids[i]))
+        ),
     )
 
     # Take top closest

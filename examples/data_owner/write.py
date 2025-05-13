@@ -74,7 +74,9 @@ async def main():
     # Process RAG data by creating embeddings, chunks and corresponding shares
     print(f"Process RAG data...")
     start_time = time.time()
-    embeddings, embeddings_shares, chunks_shares = await rag.process_rag_data(args.file, chunk_size=args.chunk_size)
+    embeddings, embeddings_shares, chunks_shares = await rag.process_rag_data(
+        args.file, chunk_size=args.chunk_size
+    )
     end_time = time.time()
     print(f"RAG data processed in {end_time - start_time:.2f} seconds")
 
