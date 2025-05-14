@@ -30,19 +30,22 @@ async def main():
     """
     parser = argparse.ArgumentParser(description="Query nilDB using nilRAG")
     parser.add_argument(
+        "-p",
         "--prompt",
         type=str,
         default=DEFAULT_PROMPT,
         help=f"Query prompt (default: {DEFAULT_PROMPT})",
     )
     parser.add_argument(
-        "--chunks",
+        "-c",
+        "--num-chunks",
         type=int,
         default=DEFAULT_NUM_CHUNKS,
         help=f"Number of chunks to return (default: {DEFAULT_NUM_CHUNKS})",
     )
     parser.add_argument(
-        "--clusters",
+        "-l",
+        "--num-clusters",
         type=int,
         default=DEFAULT_NUM_CLUSTERS,
         help=f"Number of clusters to search through (default: {DEFAULT_NUM_CLUSTERS})",
@@ -68,7 +71,7 @@ async def main():
     print("Perform nilRAG...")
     start_time = time.time()
     top_chunks = await rag.top_num_chunks_execute(
-        args.prompt, args.chunks, ENABLE_BENCHMARKS, args.clusters
+        args.prompt, args.num_chunks, ENABLE_BENCHMARKS, args.num_clusters
     )
     end_time = time.time()
     print(json.dumps(top_chunks, indent=4))
