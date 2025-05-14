@@ -280,7 +280,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         )
 
         # Step 2: Ask NilDB to compute the differences
-        difference_shares, asking_nildb_time_sec = await benchmark_time_async(
+        difference_shares_by_id, asking_nildb_time_sec = await benchmark_time_async(
             self.execute_subtract_query,
             nilql_query_embedding,
             closest_centroids,
@@ -288,15 +288,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         )
 
         # Step 3: Compute distances and sort
-        # 3.1 Group difference shares by ID
-        difference_shares_by_id, group_shares_by_id_time_sec = benchmark_time(
-            group_shares_by_id,
-            difference_shares,
-            lambda share: share["difference"],
-            enable=enable_benchmark,
-        )
-
-        # 3.2 Transpose the lists for each _id
+        # 3.1 Transpose the lists for each _id
         difference_shares_by_id, transpose_list_time_sec = benchmark_time(
             lambda: {
                 id: list(map(list, zip(*differences)))
@@ -304,7 +296,8 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             },
             enable=enable_benchmark,
         )
-        # 3.3 Decrypt and compute distances
+
+        # 3.2 Decrypt and compute distances
         reconstructed, decrypt_time_sec = benchmark_time(
             lambda: [
                 {
@@ -317,7 +310,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             ],
             enable=enable_benchmark,
         )
-        # 3.4 Sort id list based on the corresponding distances
+        # 3.3 Sort id list based on the corresponding distances
         sorted_ids = sorted(reconstructed, key=lambda x: x["distances"])
 
         # Step 4: Query the top num_chunks
@@ -330,11 +323,13 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         chunk_shares, query_top_chunks_time_sec = await benchmark_time_async(
             self.read_chunk_from_nodes, top_num_chunks_ids, enable=enable_benchmark
         )
+
         # 4.2 Group chunk shares by ID
         chunk_shares_by_id = group_shares_by_id(
             chunk_shares,  # type: ignore
             lambda share: share["chunk"],
         )
+
         # 4.3 Decrypt chunks
         top_num_chunks = [
             {"_id": id, "chunks": nilql.decrypt(xor_key, chunk_shares)}
@@ -351,7 +346,6 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             \n Number of clusters found: {num_clusters}\
             \n encrypt query embedding: {encrypt_query_embedding_time_sec:.2f} seconds\
             \n ask nilDB to compute the differences: {asking_nildb_time_sec:.2f} seconds\
-            \n group shares by Id: {group_shares_by_id_time_sec:.2f} seconds\
             \n transpose list: {transpose_list_time_sec:.2f} seconds\
             \n decrypt: {decrypt_time_sec:.2f} seconds\
             \n get top chunks ids: {top_num_chunks_ids_time_sec:.2f} seconds\
