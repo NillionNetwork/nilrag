@@ -140,7 +140,11 @@ class NilDBOps:
         clusters_schema_id = self.clusters_schema_id
         for _, node in enumerate(self.nodes):
             centroids_data = [
-                {"_id": centroid_ids[centroid_idx], "cluster_centroid": centroid}
+                {
+                    "_id": centroid_ids[centroid_idx],
+                    "cluster_centroid": centroid,
+                    "index": centroid_idx,
+                }
                 for centroid_idx, centroid in enumerate(centroids)
             ]
             tasks.append(
