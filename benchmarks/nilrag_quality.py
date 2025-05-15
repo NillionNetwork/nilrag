@@ -1,5 +1,5 @@
 """
-Benchmarks of server performing RAG with nilDB nodes.
+Benchmarks for search quality with nilDB nodes.
 """
 
 import argparse
@@ -46,12 +46,15 @@ def normalized_discounted_cumulative_gain(pred, truth):
 
 async def main():
     """
-    Performing RAG using nilDB nodes. This is the RAG logic to be run on nilAI.
+    Performing search using nilDB nodes. This is the search logic to be run on nilAI.
 
     This script:
     1. Loads the nilDB configuration
-    2. Performs RAG using nilDB nodes
-    3. Displays the response and timing information
+    2. Fetches the number of clusters to use for full search
+    3. Generates random queries
+    4. For each query performs full search
+    5. For each query performs partial search using clusters
+    6. Displays the response and timing information
     """
     parser = argparse.ArgumentParser(description="Query nilDB using nilRAG")
     parser.add_argument(
@@ -104,7 +107,7 @@ async def main():
     precisions, ndcgs = [], []
     for i in range(args.num_queries):
         prompt = f"Who is {fake.name()}?"
-        print(prompt)
+        print(f"Prompt {i}: {prompt}")
         top_chunks = await rag.top_num_chunks_execute(
             prompt, args.num_chunks, ENABLE_BENCHMARKS, num_clusters
         )
@@ -121,8 +124,8 @@ async def main():
     print(
         f"Queries took {np.mean(running_times):.2f} +- {np.std(running_times):.2f} seconds"
     )
-    print(f"Precision {np.mean(precisions):.2f} +- {np.std(precisions):.2f} seconds")
-    print(f"nDCG {np.mean(ndcgs):.2f} +- {np.std(ndcgs):.2f} seconds")
+    print(f"Precision {np.mean(precisions):.2f} +- {np.std(precisions):.2f}")
+    print(f"nDCG {np.mean(ndcgs):.2f} +- {np.std(ndcgs):.2f}")
 
 
 if __name__ == "__main__":
