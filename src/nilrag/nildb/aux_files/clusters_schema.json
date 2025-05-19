@@ -16,6 +16,10 @@
                 "items": {
                     "type": "number"
                 }
+            },
+            "index": {
+                "description": "Cluster index",
+                "type": "number"
             }
         },
         "required": [
