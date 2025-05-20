@@ -35,6 +35,7 @@ jobs:
       run: |
         uv pip install -e ".[dev]"
         uv pip install isort pylint
-    
+
     - name: Run benchmark
-        run: pytest benchmarks/sum.py --benchmark-json output.json
+      run: |
+        uv run pytest benchmarks/sum.py --benchmark-json output.json
