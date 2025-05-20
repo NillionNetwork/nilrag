@@ -35,18 +35,6 @@ jobs:
       run: |
         uv pip install -e ".[dev]"
         uv pip install isort pylint
-
-    # - name: Check code formatting with isort
-    #   run: |
-    #     uv run isort --check-only .
-
-    # - name: Run pylint
-    #   run: |
-    #     uv run pylint src/nilrag test
-
-    # - name: Run tests
-    #   run: |
-    #     uv run -m unittest test.rag
     
     - name: Run benchmark
         run: pytest benchmarks/sum.py --benchmark-json output.json
