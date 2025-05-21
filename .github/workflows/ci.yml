@@ -42,7 +42,9 @@ jobs:
         # Replace Nillion credentials in .env
         sed -i 's/NILLION_ORG_DID=.*/NILLION_ORG_DID=${{ secrets.NILLION_ORG_DID }}/' .env
         sed -i 's/NILLION_ORG_SECRET_KEY=.*/NILLION_ORG_SECRET_KEY=${{ secrets.NILLION_ORG_SECRET_KEY }}/' .env
-    
+        sed -i 's/SCHEMA_ID=.*/SCHEMA_ID=${{ secrets.SCHEMA_ID }}/' .env
+        sed -i 's/QUERY_ID=.*/QUERY_ID=${{ secrets.QUERY_ID }}/' .env
+
     - name: Run benchmark
       run: |
         uv run pytest benchmarks/test_rag.py --benchmark-json output.json
