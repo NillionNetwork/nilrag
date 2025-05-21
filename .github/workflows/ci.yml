@@ -35,7 +35,20 @@ jobs:
       run: |
         uv pip install -e ".[dev]"
         uv pip install isort pylint
-
+    
+    - name: Set up environment
+      run: |
+        cp .env.ci .env
+        # Replace Nillion credentials in .env
+        sed -i 's/NILLION_ORG_DID=.*/NILLION_ORG_DID=${{ secrets.NILLION_ORG_DID }}/' .env
+        sed -i 's/NILLION_ORG_SECRET_KEY=.*/NILLION_ORG_SECRET_KEY=${{ secrets.NILLION_ORG_SECRET_KEY }}/' .env
+    
     - name: Run benchmark
       run: |
-        uv run pytest benchmarks/sum.py --benchmark-json output.json
+        uv run pytest benchmarks/test_rag.py --benchmark-json output.json
+
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'pytest'
+        output-file-path: output.json
