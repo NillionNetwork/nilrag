@@ -35,15 +35,25 @@ jobs:
       run: |
         uv pip install -e ".[dev]"
         uv pip install isort pylint
-
-    - name: Check code formatting with isort
+    
+    - name: Set up environment
       run: |
-        uv run isort --check-only .
+        cp .env.ci .env
+        # Replace Nillion credentials in .env
+        sed -i 's/NILLION_ORG_DID=.*/NILLION_ORG_DID=${{ secrets.NILLION_ORG_DID }}/' .env
+        sed -i 's/NILLION_ORG_SECRET_KEY=.*/NILLION_ORG_SECRET_KEY=${{ secrets.NILLION_ORG_SECRET_KEY }}/' .env
+        sed -i 's/SCHEMA_ID=.*/SCHEMA_ID=${{ secrets.SCHEMA_ID }}/' .env
+        sed -i 's/QUERY_ID=.*/QUERY_ID=${{ secrets.QUERY_ID }}/' .env
 
-    - name: Run pylint
+    - name: Run benchmark
       run: |
-        uv run pylint src/nilrag test
+        uv run pytest benchmarks/test_rag.py --benchmark-json output.json
 
-    - name: Run tests
-      run: |
-        uv run -m unittest test.rag
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'pytest'
+        output-file-path: output.json
+        auto-push: true
+        #This token is used to push the benchmark result to the repository. It needs to be updated after a month of creation.
+        github-token: ${{ secrets.BENCHMARK_ACTION_BOT_TOKEN }}

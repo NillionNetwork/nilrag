@@ -246,6 +246,9 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
                 - `_id` (Any): The unique identifier of the data chunk.
                 - `distances` (float): The computed distance between the query and the data chunk.
         """
+        # Add 20-second delay for testing
+        await asyncio.sleep(5)
+        
         # Check the input format
         if query is None and not isinstance(query, str):
             raise TypeError("Prompt must be a string")
