@@ -54,3 +54,4 @@ jobs:
       with:
         tool: 'pytest'
         output-file-path: output.json
+        auto-push: true
