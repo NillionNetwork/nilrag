@@ -55,3 +55,5 @@ jobs:
         tool: 'pytest'
         output-file-path: output.json
         auto-push: true
+        #This token is used to push the benchmark result to the repository. It needs to be updated after a month of creation.
+        github-token: ${{ secrets.BENCHMARK_ACTION_BOT_TOKEN }}
