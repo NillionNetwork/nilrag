@@ -247,7 +247,7 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
                 - `distances` (float): The computed distance between the query and the data chunk.
         """
         # Add 20-second delay for testing
-        await asyncio.sleep(20)
+        await asyncio.sleep(5)
         
         # Check the input format
         if query is None and not isinstance(query, str):
