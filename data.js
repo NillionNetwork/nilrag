@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748521876144,
+  "lastUpdate": 1748524245879,
   "repoUrl": "https://github.com/NillionNetwork/nilrag",
   "entries": {
     "Python Benchmark with pytest-benchmark": [
@@ -324,6 +324,33 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.08692028903612577",
             "extra": "mean: 5.397603424729998 sec\nrounds: 10"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "NillionNetwork",
+            "username": "NillionNetwork"
+          },
+          "committer": {
+            "name": "NillionNetwork",
+            "username": "NillionNetwork"
+          },
+          "id": "13a64ae023be7ab55daf92da60a913419956d1bb",
+          "message": "Feat/benches pipeline",
+          "timestamp": "2025-05-19T16:29:38Z",
+          "url": "https://github.com/NillionNetwork/nilrag/pull/21/commits/13a64ae023be7ab55daf92da60a913419956d1bb"
+        },
+        "date": 1748524245308,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "benchmarks/test_rag.py::test_rag_pedantic",
+            "value": 0.1552253293970566,
+            "unit": "iter/sec",
+            "range": "stddev: 0.09424295995675172",
+            "extra": "mean: 6.442247562844999 sec\nrounds: 10"
           }
         ]
       }
