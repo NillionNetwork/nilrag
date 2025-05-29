@@ -279,7 +279,7 @@ class TestRAGMethods(unittest.IsolatedAsyncioTestCase):
             self.check_top_results(top_results, case.expected_results)
 
     @unittest.skipUnless(RUN_OPTIONAL_TESTS, "Skipping optional test.")
-    async def test_top_num_chunks_execute(self):
+    async def test_1_top_num_chunks_execute(self):
         """
         Test the RAG method with nilDB.
         """
@@ -308,12 +308,43 @@ class TestRAGMethods(unittest.IsolatedAsyncioTestCase):
         print(json.dumps(top_chunks, indent=4))
         print(f"Query took {end_time - start_time:.2f} seconds")
 
-        # Format top results as nilAI
-        formatted_results = "\n".join(
-            f"- {str(result['chunks'])}" for result in top_chunks
-        )
+        print(f"Relevant Context:\n{top_chunks}")
 
-        print(f"Relevant Context:\n{formatted_results}")
+    @unittest.skipUnless(RUN_OPTIONAL_TESTS, "Skipping optional test.")
+    async def test_2_top_num_chunks_execute(self):
+        """
+        Test the RAG method with nilDB.
+        RAGVault is created from a dictionary
+        """
+
+        # Load environment variables
+        load_dotenv(override=True)
+
+        schema_id = os.getenv("SCHEMA_ID")
+        clusters_schema_id = os.getenv("CLUSTERS_SCHEMA_ID")
+        subtract_query_id = os.getenv("QUERY_ID")
+
+        # Build config dictionary for create_from_dict
+        config = {
+            "nodes": ORG_CONFIG["nodes"],
+            "org_secret_key": ORG_CONFIG["org_credentials"]["secret_key"],
+            "org_did": ORG_CONFIG["org_credentials"]["org_did"],
+            "schema_id": schema_id,
+            "clusters_schema_id": clusters_schema_id,
+            "subtract_query_id": subtract_query_id,
+        }
+        # Initialize vault with clustering enabled
+        rag = await RAGVault.create_from_dict(config)
+
+        print("Perform nilRAG...")
+        start_time = time.time()
+        query = DEFAULT_PROMPT
+        top_chunks = await rag.top_num_chunks_execute(query, 2)
+        end_time = time.time()
+        print(json.dumps(top_chunks, indent=4))
+        print(f"Query took {end_time - start_time:.2f} seconds")
+
+        print(f"Relevant Context:\n{top_chunks}")
 
 
 if __name__ == "__main__":
