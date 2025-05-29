@@ -94,6 +94,48 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         return self
 
     @classmethod
+    async def create_from_dict(
+        cls,
+        config: dict,
+        *args,
+        **kwargs,
+    ) -> "RAGVault":
+        """
+        Create a RAGVault instance from a dictionary
+        """
+        nodes = []
+        for node_data in config["nodes"]:
+            nodes.append(
+                {
+                    "url": node_data["url"],
+                    "did": node_data["did"]
+                }
+            )
+        credentials = {
+            "secret_key": node_data["org_secret_key"],
+            "org_did": node_data["org_did"]
+        }
+
+        # Extract optional fields
+        with_clustering = config.get("with_clustering", None)
+        clusters_schema_id = config.get("clusters_schema_id", None)
+        subtract_query_id = config.get("subtract_query_id", None)
+
+        # Construct object synchronously
+        self = cls(
+            nodes,
+            credentials,
+            *args,
+            with_clustering=with_clustering,
+            clusters_schema_id=clusters_schema_id,
+            subtract_query_id=subtract_query_id,
+            **kwargs,
+        )
+        # Perform async initialization from SecretVaultWrapper (await SecretVaultWrapper.init())
+        await self.init()
+        return self
+
+    @classmethod
     async def bootstrap(
         cls,
         org_config: Dict[str, str],
