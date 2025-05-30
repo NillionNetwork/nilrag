@@ -5,9 +5,12 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   test:
+    permissions:
+      contents: write 
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,7 +38,7 @@ jobs:
       run: |
         uv pip install -e ".[dev]"
         uv pip install isort pylint
-
+    
     - name: Check code formatting with isort
       run: |
         uv run isort --check-only .
@@ -47,3 +50,33 @@ jobs:
     - name: Run tests
       run: |
         uv run -m unittest test.rag
+    
+    - name: Set up environment
+      run: |
+        cp .github/workflows/.env.ci .env
+        # Replace Nillion credentials in .env
+        # Note: The .env.ci file contains a dataset of 1000 paragraphs for benchmarking.
+        # This benchmark specifically tests the non-clustered case of RAG execution
+        sed -i 's/NILLION_ORG_DID=.*/NILLION_ORG_DID=${{ secrets.NILLION_ORG_DID }}/' .env
+        sed -i 's/NILLION_ORG_SECRET_KEY=.*/NILLION_ORG_SECRET_KEY=${{ secrets.NILLION_ORG_SECRET_KEY }}/' .env
+        sed -i 's/SCHEMA_ID=.*/SCHEMA_ID=${{ secrets.SCHEMA_ID }}/' .env
+        sed -i 's/QUERY_ID=.*/QUERY_ID=${{ secrets.QUERY_ID }}/' .env
+
+    - name: Run benchmark
+      run: |
+        uv run pytest benchmarks/test_rag.py --benchmark-json output.json
+
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        name: Python Benchmark with pytest-benchmark
+        tool: 'pytest'
+        output-file-path: output.json
+        github-token: ${{ secrets.BENCHMARK_ACTION_BOT_TOKEN }} # Note: This token has a limited lifetime (30 days) and needs to be renewed periodically.
+        auto-push: true
+        # Show alert with commit comment on detecting possible performance regression
+        alert-threshold: '135%'
+        comment-on-alert: true
+        fail-on-alert: true
+        gh-pages-branch: gh-pages
+        benchmark-data-dir-path: .
