@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748597753799,
+  "lastUpdate": 1748598961723,
   "repoUrl": "https://github.com/NillionNetwork/nilrag",
   "entries": {
     "Python Benchmark with pytest-benchmark": [
@@ -972,6 +972,37 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.023673077887988708",
             "extra": "mean: 6.6213365300200016 sec\nrounds: 5"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "122607510+jfdreis@users.noreply.github.com",
+            "name": "José Reis",
+            "username": "jfdreis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "96d8f3e7fb423cea2339b9e17c80788caa5cb6d0",
+          "message": "Merge pull request #21 from NillionNetwork/feat/benches-pipeline\n\nFeat/benches pipeline",
+          "timestamp": "2025-05-30T10:47:15+01:00",
+          "tree_id": "7e926612c9541d0525c96edbe98505e12928b6e8",
+          "url": "https://github.com/NillionNetwork/nilrag/commit/96d8f3e7fb423cea2339b9e17c80788caa5cb6d0"
+        },
+        "date": 1748598961173,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "benchmarks/test_rag.py::test_rag_pedantic",
+            "value": 0.15498980044389055,
+            "unit": "iter/sec",
+            "range": "stddev: 0.11623740515916622",
+            "extra": "mean: 6.4520374704400005 sec\nrounds: 5"
           }
         ]
       }
