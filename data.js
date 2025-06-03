@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748959556920,
+  "lastUpdate": 1748961283189,
   "repoUrl": "https://github.com/NillionNetwork/nilrag",
   "entries": {
     "Python Benchmark with pytest-benchmark": [
@@ -1030,6 +1030,33 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0626177114977577",
             "extra": "mean: 5.61403911896 sec\nrounds: 5"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "NillionNetwork",
+            "username": "NillionNetwork"
+          },
+          "committer": {
+            "name": "NillionNetwork",
+            "username": "NillionNetwork"
+          },
+          "id": "6bc16bb21ac7a5aa2ab536ccaba002877e4215a3",
+          "message": "Feat/create from dict",
+          "timestamp": "2025-05-30T09:47:19Z",
+          "url": "https://github.com/NillionNetwork/nilrag/pull/22/commits/6bc16bb21ac7a5aa2ab536ccaba002877e4215a3"
+        },
+        "date": 1748961282624,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "benchmarks/test_rag.py::test_rag_pedantic",
+            "value": 0.15398817434766757,
+            "unit": "iter/sec",
+            "range": "stddev: 0.09503977588691541",
+            "extra": "mean: 6.494005167839999 sec\nrounds: 5"
           }
         ]
       }
