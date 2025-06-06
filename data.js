@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748962065003,
+  "lastUpdate": 1749206770996,
   "repoUrl": "https://github.com/NillionNetwork/nilrag",
   "entries": {
     "Python Benchmark with pytest-benchmark": [
@@ -1084,6 +1084,37 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.18873438507507662",
             "extra": "mean: 8.14473289212 sec\nrounds: 5"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "122607510+jfdreis@users.noreply.github.com",
+            "name": "José Reis",
+            "username": "jfdreis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "75eae0eb95203ce020bc6f85d01851004626964e",
+          "message": "Merge pull request #22 from NillionNetwork/feat/create-from-dict\n\nFeat/create from dict",
+          "timestamp": "2025-06-06T11:35:47+01:00",
+          "tree_id": "02f0d22e5556a695c487f0bb69fadbee99162249",
+          "url": "https://github.com/NillionNetwork/nilrag/commit/75eae0eb95203ce020bc6f85d01851004626964e"
+        },
+        "date": 1749206769770,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "benchmarks/test_rag.py::test_rag_pedantic",
+            "value": 0.1267248331380199,
+            "unit": "iter/sec",
+            "range": "stddev: 0.06043384641829811",
+            "extra": "mean: 7.89111317204 sec\nrounds: 5"
           }
         ]
       }
