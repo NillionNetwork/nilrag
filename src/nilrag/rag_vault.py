@@ -94,6 +94,51 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
         return self
 
     @classmethod
+    async def create_from_dict(
+        cls,
+        config: dict,
+        *args,
+        **kwargs,
+    ) -> "RAGVault":
+        """
+        Create a RAGVault instance from a dictionary
+        """
+        # Check required keys explicitly
+        if "nodes" not in config:
+            raise ValueError("Missing required 'nodes' field in configuration")
+        if "org_secret_key" not in config or "org_did" not in config:
+            raise ValueError("Missing 'org_secret_key' or 'org_did' in configuration")
+
+        nodes = []
+        for node_data in config["nodes"]:
+            nodes.append({"url": node_data["url"], "did": node_data["did"]})
+        credentials = {
+            "secret_key": config["org_secret_key"],
+            "org_did": config["org_did"],
+        }
+
+        # Extract optional fields
+        with_clustering = config.get("with_clustering", None)
+        schema_id = config.get("schema_id", None)
+        clusters_schema_id = config.get("clusters_schema_id", None)
+        subtract_query_id = config.get("subtract_query_id", None)
+
+        # Construct object synchronously
+        self = cls(
+            nodes,
+            credentials,
+            *args,
+            schema_id=schema_id,
+            with_clustering=with_clustering,
+            clusters_schema_id=clusters_schema_id,
+            subtract_query_id=subtract_query_id,
+            **kwargs,
+        )
+        # Perform async initialization from SecretVaultWrapper (await SecretVaultWrapper.init())
+        await self.init()
+        return self
+
+    @classmethod
     async def bootstrap(
         cls,
         org_config: Dict[str, str],
@@ -337,6 +382,14 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             {"_id": id, "chunks": nilql.decrypt(xor_key, chunk_shares)}
             for id, chunk_shares in chunk_shares_by_id.items()
         ]
+        # 5: Format top results
+        formatted_results, formatted_results_time_sec = benchmark_time(
+            lambda: "\n".join(
+                f"- {str(result['chunks'])}" for result in top_num_chunks
+            ),
+            enable=enable_benchmark,
+        )
+        relevant_context = f"\n\nRelevant Context:\n{formatted_results}"
 
         # Print benchmarks, if enabled
         if enable_benchmark:
@@ -352,9 +405,10 @@ class RAGVault(SecretVaultWrapper, NilDBInit, NilDBOps):
             \n decrypt: {decrypt_time_sec:.2f} seconds\
             \n get top chunks ids: {top_num_chunks_ids_time_sec:.2f} seconds\
             \n query top chunks: {query_top_chunks_time_sec:.2f} seconds\
+            \n format top num chunks: {formatted_results_time_sec:.2f} seconds\
             """
             )
-        return top_num_chunks
+        return relevant_context
 
     def nilai_chat_completion(
         self,
